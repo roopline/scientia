@@ -210,6 +210,41 @@ header.bar{
 .toc-page{font-family:var(--roman); font-size:12px; color:var(--ink-soft)}
 .toc-empty{padding:30px 6px; color:var(--ink-soft); font-size:14px; line-height:2.2; text-align:center}
 
+/* ---- 章(カテゴリ)の扉と階層目次 ---- */
+.cat-head{break-before:column; padding:60px 0 8px; text-align:center; break-inside:avoid}
+.cat-no{
+  font-family:var(--roman); font-weight:600; color:var(--rubric);
+  font-size:12px; letter-spacing:.5em; text-indent:.5em; margin-bottom:14px;
+}
+.cat-name{
+  font-family:'Cinzel','Shippori Mincho B1',serif; font-size:30px; font-weight:700;
+  letter-spacing:.2em; text-indent:.2em; color:var(--ink); line-height:1.4;
+}
+.cat-head::after{content:"❦"; display:block; color:var(--bronze); margin-top:18px; font-size:14px}
+.toc-cat{margin-top:20px; border-bottom:1px solid var(--bronze); break-inside:avoid}
+.toc-cat-go{
+  width:100%; display:flex; align-items:baseline; gap:10px; text-align:left;
+  padding:10px 2px; color:var(--ink);
+}
+.toc-cat-go:active{background:rgba(158,47,36,.07)}
+.toc-cat-no{font-family:var(--roman); font-weight:600; color:var(--rubric); font-size:11px; letter-spacing:.3em; flex:none}
+.toc-cat-name{font-weight:700; font-size:16px; letter-spacing:.06em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.toc-item .toc-go{padding-left:14px}
+.cat-row{display:flex; align-items:center; gap:10px; padding:13px 4px; border-bottom:1px solid var(--bronze-line); font-size:15px}
+.cat-row-name{flex:1; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cat-row-count{font-size:11px; color:var(--ink-soft); flex:none}
+.cat-row-btn{flex:none; font-size:12px; color:var(--bronze); border:1px solid var(--bronze-line); border-radius:99px; padding:4px 12px}
+.cat-row-btn:active{background:var(--bronze-line)}
+.cat-row-btn.danger{color:#8a3324}
+.ed-cat-row{display:flex; align-items:center; gap:10px; padding:12px 20px 0}
+.ed-cat-label{font-size:11px; letter-spacing:.3em; color:var(--ink-soft); flex:none}
+.ed-cat-select{
+  flex:1; appearance:none; -webkit-appearance:none; border:1px solid var(--bronze);
+  border-radius:8px; background:rgba(255,255,255,.3); padding:9px 12px; font-size:14px;
+  color:var(--ink); outline:none; font-family:var(--serif-jp);
+}
+[data-theme="night"] .ed-cat-select{background:rgba(0,0,0,.25)}
+
 /* ---- ページめくり操作 ---- */
 footer.pager{
   display:flex; align-items:center; justify-content:center; gap:18px;
@@ -406,7 +441,8 @@ footer.pager{
   <h2>書 庫</h2>
   <div class="sheet-cap">BIBLIOTHECA</div>
   <button class="menu-item" id="miToc"><span class="mi-ico">⌖</span><span>目次へ戻る<span class="mi-sub">INDEX — 巻頭の目次ページを開く</span></span></button>
-  <button class="menu-item" id="miNew"><span class="mi-ico">✒</span><span>新しい章を書く<span class="mi-sub">この場で書いた文章が新しい章になります</span></span></button>
+  <button class="menu-item" id="miNew"><span class="mi-ico">✒</span><span>新しいメモを書く<span class="mi-sub">書いたメモは選んだ章(WORK / LIFEなど)に入ります</span></span></button>
+  <button class="menu-item" id="miCats"><span class="mi-ico">⌸</span><span>章の管理<span class="mi-sub">PARTES — WORK / LIFE などの大タイトルを作成・整理</span></span></button>
   <button class="menu-item" id="miFiles"><span class="mi-ico">⇲</span><span>ファイルを取り込む<span class="mi-sub">Obsidianの .md / テキスト .txt(複数可)</span></span></button>
   <button class="menu-item" id="miClip"><span class="mi-ico">⎘</span><span>クリップボードから取り込む<span class="mi-sub">iPhoneの共有→ショートカット経由はこちら</span></span></button>
   <button class="menu-item" id="miAnnos"><span class="mi-ico">✎</span><span>気づきメモ<span class="mi-sub">ADNOTATIONES — 読み返しの気づき一覧</span></span></button>
@@ -446,6 +482,14 @@ footer.pager{
   <div id="srchResults"></div>
 </div>
 
+<!-- ======== 章の管理 ======== -->
+<div class="sheet" id="catSheet">
+  <h2>章 の 管 理</h2>
+  <div class="sheet-cap">PARTES — 大きなタイトルでメモを束ねる</div>
+  <button class="anno-add" id="catAdd">＋ 新しい章を作る(例: WORK、LIFE)</button>
+  <div id="catList"></div>
+</div>
+
 <!-- ======== 気づきメモ(一覧) ======== -->
 <div class="sheet" id="annoSheet">
   <h2>気 づ き メ モ</h2>
@@ -473,7 +517,11 @@ footer.pager{
     <button class="ed-act" id="edDelete" style="color:#8a3324">削除</button>
     <button class="ed-save" id="edSave">綴 じ る</button>
   </div>
-  <input id="edTitle" placeholder="章の題名(目次に載ります)">
+  <div class="ed-cat-row">
+    <span class="ed-cat-label">章</span>
+    <select id="edCat" class="ed-cat-select"></select>
+  </div>
+  <input id="edTitle" placeholder="メモの題名(目次に載ります)">
   <div class="ed-rule"></div>
   <textarea id="edBody" placeholder="本文。Markdownが使えます — # 見出し、**太字**、- 箇条書き、> 引用 など"></textarea>
   <div class="ed-hint">✒ 1行目が「# 見出し」の場合、題名が空ならそれを題名として採用します</div>
@@ -505,9 +553,10 @@ footer.pager{
 /* ---------- CFG: 設定値 ---------- */
 const CFG = {
   DB_NAME: "scientia-db",
-  DB_VERSION: 2,            // v2: 気づきメモ(annos)ストア追加
+  DB_VERSION: 3,            // v2: 気づきメモ / v3: 章(cats)ストア追加
   STORE: "notes",
   STORE_ANNOS: "annos",
+  STORE_CATS: "cats",
   SPREAD_MIN_W: 760,        // この幅以上で見開き2ページ
   EDGE_TAP: 0.13,           // 画面端タップでページ送りする領域(横幅比)
   SWIPE_MIN_X: 56,          // スワイプ判定の最小横移動量(px)
@@ -526,6 +575,8 @@ const CFG = {
     GAS_KEY: "scientia-gas-key",
     TOMBS: "scientia-tombs",
     ANNO_TOMBS: "scientia-anno-tombs",
+    CAT_TOMBS: "scientia-cat-tombs",
+    LAST_CAT: "scientia-last-cat",
     LAST_SYNC: "scientia-last-sync",
     GUIDED: "scientia-guided"
   }
@@ -563,6 +614,10 @@ const Store = (() => {
         /* v2: 気づきメモ。既存DB(v1)からの昇格でも蔵書はそのまま残る */
         if(!d.objectStoreNames.contains(CFG.STORE_ANNOS)){
           d.createObjectStore(CFG.STORE_ANNOS, { keyPath: "id" });
+        }
+        /* v3: 章(WORK / LIFE などの大タイトル) */
+        if(!d.objectStoreNames.contains(CFG.STORE_CATS)){
+          d.createObjectStore(CFG.STORE_CATS, { keyPath: "id" });
         }
       };
       rq.onsuccess = e => { db = e.target.result; resolve(); };
@@ -650,16 +705,35 @@ const Markdown = (() => {
 
 /* ---------- 状態 ---------- */
 const state = {
-  notes: [],          // {id,title,body,created,updated}
+  notes: [],          // メモ {id,title,body,catId,created,updated}
   annos: [],          // 気づきメモ {id,noteId,body,created,updated}
+  cats: [],           // 章 {id,name,created,updated}
   curPage: 0,         // 左端に見えているページ番号(0始まり)
   totalPages: 1,
   spread: false,      // 見開きか
   pageStride: 0,      // 1ページ分の横移動量
   chapterPages: {},   // noteId -> 開始ページ
+  catPages: {},       // catId -> 章扉の開始ページ
   editingId: null
 };
 const sortedNotes = () => [...state.notes].sort((a, b) => a.created - b.created);
+const sortedCats = () => [...state.cats].sort((a, b) => a.created - b.created);
+
+/* 章(カテゴリ)ごとにメモを束ねる。catId が無い・宙に浮いている
+   メモは「未分類」として最後の章にまとめる(既存データ移行不要)。 */
+const UNCAT_ID = "__uncat";
+function groupByCat(){
+  const cats = sortedCats();
+  const catIds = new Set(cats.map(c => c.id));
+  const groups = cats.map(c => ({ id: c.id, name: c.name || "無題の章", notes: [] }));
+  const uncat = { id: UNCAT_ID, name: "未分類", notes: [] };
+  for(const n of sortedNotes()){
+    const g = (n.catId && catIds.has(n.catId)) ? groups.find(x => x.id === n.catId) : uncat;
+    g.notes.push(n);
+  }
+  if(uncat.notes.length) groups.push(uncat);
+  return groups;
+}
 
 /* 章本文のレンダリング結果キャッシュ。
    1章を保存するたびに全章のMarkdownを再変換すると章数に比例して
@@ -677,44 +751,58 @@ function chapterHTML(n){
 const flow = $("#flow"), book = $("#book"), viewport = $("#viewport");
 
 function buildBook(){
-  const sorted = sortedNotes();
   const esc = Markdown.esc;
+  const groups = groupByCat();
   let html = "";
-  /* — 目次 — */
+  /* — 目次(章 → その中のメモ 1,2,3…) — */
   html += `<div class="pagepad"><div class="toc-block" id="tocTop">
     <div class="toc-title">INDEX</div>
-    <div class="toc-sub">目 次 ・ 全 ${sorted.length} 章</div>`;
-  if(!sorted.length){
-    html += `<div class="toc-empty">まだ章がありません。<br>右上の「＋」から最初の一章を書くか、<br>メニューからメモを取り込んでください。</div>`;
+    <div class="toc-sub">目 次 ・ ${groups.length} 章 ・ ${state.notes.length} メモ</div>`;
+  if(!state.notes.length && !state.cats.length){
+    html += `<div class="toc-empty">まだメモがありません。<br>右上の「＋」から最初の一篇を書くか、<br>メニューからメモを取り込んでください。</div>`;
   }else{
-    sorted.forEach((n, idx) => {
-      html += `<div class="toc-item">
-        <button class="toc-go" data-go="${n.id}">
-          <span class="toc-num">${roman(idx+1)}</span>
-          <span class="toc-name">${esc(n.title || "無題")}</span>
+    groups.forEach((g, gi) => {
+      html += `<div class="toc-cat">
+        <button class="toc-cat-go" data-gocat="${g.id}">
+          <span class="toc-cat-no">PARS ${roman(gi+1)}</span>
+          <span class="toc-cat-name">${esc(g.name)}</span>
           <span class="toc-dots"></span>
-          <span class="toc-page" data-pageof="${n.id}">·</span></button>
-        <button class="toc-edit" data-edit="${n.id}" aria-label="この章を編集">✒</button></div>`;
+          <span class="toc-page" data-pageofcat="${g.id}">·</span></button></div>`;
+      g.notes.forEach((n, idx) => {
+        html += `<div class="toc-item">
+          <button class="toc-go" data-go="${n.id}">
+            <span class="toc-num">${idx+1}</span>
+            <span class="toc-name">${esc(n.title || "無題")}</span>
+            <span class="toc-dots"></span>
+            <span class="toc-page" data-pageof="${n.id}">·</span></button>
+          <button class="toc-edit" data-edit="${n.id}" aria-label="このメモを編集">✒</button></div>`;
+      });
     });
   }
   html += `</div>`;
-  /* — 各章 — */
-  sorted.forEach((n, idx) => {
-    const annoCount = annosOf(n.id).length;
-    html += `<div class="ch-head" id="ch-${n.id}">
-      <div class="ch-no">CAPUT ${roman(idx+1)}</div>
-      <h1 class="ch-title">${esc(n.title || "無題")}</h1>
-      <div class="ch-meta"><span>${fmtDate(n.created)}</span>
-        <button class="ch-edit" data-edit="${n.id}">✒ 編集</button>
-        <button class="ch-anno" data-anno="${n.id}">✎ 気づき${annoCount ? `・${annoCount}` : ""}</button></div>
-    </div>
-    <div class="ch-body">${chapterHTML(n)}</div>
-    <div class="ch-end">❦</div>`;
+  /* — 本文: 章扉 → 各メモ — */
+  groups.forEach((g, gi) => {
+    html += `<div class="cat-head" id="cat-${g.id}">
+      <div class="cat-no">PARS ${roman(gi+1)}</div>
+      <div class="cat-name">${esc(g.name)}</div>
+    </div>`;
+    g.notes.forEach((n, idx) => {
+      const annoCount = annosOf(n.id).length;
+      html += `<div class="ch-head" id="ch-${n.id}">
+        <div class="ch-no">${esc(g.name)} ・ ${idx+1}</div>
+        <h1 class="ch-title">${esc(n.title || "無題")}</h1>
+        <div class="ch-meta"><span>${fmtDate(n.created)}</span>
+          <button class="ch-edit" data-edit="${n.id}">✒ 編集</button>
+          <button class="ch-anno" data-anno="${n.id}">✎ 気づき${annoCount ? `・${annoCount}` : ""}</button></div>
+      </div>
+      <div class="ch-body">${chapterHTML(n)}</div>
+      <div class="ch-end">❦</div>`;
+    });
   });
   html += `</div>`;
   flow.innerHTML = html;
-  /* 削除された章のキャッシュを掃除 */
-  const ids = new Set(sorted.map(n => n.id));
+  /* 削除されたメモのキャッシュを掃除 */
+  const ids = new Set(state.notes.map(n => n.id));
   for(const id of [...renderCache.keys()]){ if(!ids.has(id)) renderCache.delete(id); }
   layout(true);
 }
@@ -742,9 +830,20 @@ function layout(keepChapter){
       const dx = el.getBoundingClientRect().left - base;
       state.chapterPages[id] = Math.max(0, Math.round((dx - pad) / state.pageStride));
     });
+    /* 章扉の開始ページも測る(目次の章行からのジャンプ先) */
+    state.catPages = {};
+    flow.querySelectorAll(".cat-head").forEach(el => {
+      const id = el.id.slice(4);
+      const dx = el.getBoundingClientRect().left - base;
+      state.catPages[id] = Math.max(0, Math.round((dx - pad) / state.pageStride));
+    });
     /* 目次にページ数を書き込む */
     flow.querySelectorAll("[data-pageof]").forEach(el => {
       const p = state.chapterPages[el.dataset.pageof];
+      el.textContent = (p !== undefined) ? p + 1 : "·";
+    });
+    flow.querySelectorAll("[data-pageofcat]").forEach(el => {
+      const p = state.catPages[el.dataset.pageofcat];
       el.textContent = (p !== undefined) ? p + 1 : "·";
     });
     if(visibleId && state.chapterPages[visibleId] !== undefined) state.curPage = state.chapterPages[visibleId];
@@ -807,6 +906,8 @@ viewport.addEventListener("touchend", e => {
    その下のボタンや目次が押せないことがあった。座標判定方式なら
    ボタン類を一切妨げずに「画面端タップでページ送り」を実現できる。 */
 viewport.addEventListener("click", e => {
+  const gc = e.target.closest("[data-gocat]");
+  if(gc){ const p = state.catPages[gc.dataset.gocat]; if(p !== undefined) goToPage(p); return; }
   const go = e.target.closest("[data-go]");
   if(go){ const p = state.chapterPages[go.dataset.go]; if(p !== undefined) goToPage(p); return; }
   const ed = e.target.closest("[data-edit]");
@@ -828,7 +929,8 @@ window.addEventListener("resize", debounce(() => layout(true), CFG.RESIZE_MS));
 $("#openBook").onclick = () => $("#cover").classList.add("hidden");
 function updateCoverCount(){
   $("#coverCount").textContent = state.notes.length
-    ? `全 ${state.notes.length} 章を所蔵` : "最初の一章があなたを待っています";
+    ? `${state.cats.length ? state.cats.length + " 章 ・ " : ""}全 ${state.notes.length} メモを所蔵`
+    : "最初の一篇があなたを待っています";
 }
 
 /* ---------- Sheets: シート開閉・トースト ---------- */
@@ -849,9 +951,44 @@ function toast(msg){
 }
 
 /* ---------- Editor: 執筆・編集・削除 ---------- */
+/* 章セレクタ。「＋ 新しい章を作る…」を選ぶとその場で章を作成できる。
+   キャンセル時に直前の選択へ戻すため、確定値を edCatPrev に覚えておく。 */
+let edCatPrev = "";
+async function createCat(name){
+  /* 同名の章があればそれを再利用する(WORKが2つ出来る事故を防ぐ) */
+  const dup = state.cats.find(c => c.name === name);
+  if(dup) return dup;
+  const now = Date.now();
+  const c = { id: uid(), name, created: now, updated: now };
+  state.cats.push(c);
+  await Store.put(CFG.STORE_CATS, c);
+  Cloud.schedule();
+  return c;
+}
+function refreshEdCatSelect(selectedId){
+  const sel = $("#edCat");
+  sel.innerHTML =
+    `<option value="">未分類</option>` +
+    sortedCats().map(c => `<option value="${c.id}">${Markdown.esc(c.name)}</option>`).join("") +
+    `<option value="__new">＋ 新しい章を作る…</option>`;
+  sel.value = (selectedId && state.cats.some(c => c.id === selectedId)) ? selectedId : "";
+  edCatPrev = sel.value;
+}
+$("#edCat").onchange = async () => {
+  const sel = $("#edCat");
+  if(sel.value !== "__new"){ edCatPrev = sel.value; return; }
+  const name = (prompt("新しい章の名前(例: WORK、LIFE)") || "").trim();
+  if(!name){ sel.value = edCatPrev; return; }
+  const c = await createCat(name);
+  refreshEdCatSelect(c.id);
+  toast(`章「${c.name}」を作りました`);
+};
+
 function openEditor(id){
   state.editingId = id || null;
   const n = id ? state.notes.find(x => x.id === id) : null;
+  /* 新規メモは前回使った章を初期選択(連続入力の手間を減らす) */
+  refreshEdCatSelect(n ? n.catId : (localStorage.getItem(CFG.LS.LAST_CAT) || ""));
   $("#edTitle").value = n ? n.title : "";
   $("#edBody").value = n ? n.body : "";
   $("#edDelete").style.visibility = n ? "visible" : "hidden";
@@ -875,16 +1012,20 @@ $("#edSave").onclick = async () => {
     else title = (body.split("\n")[0] || "").slice(0, CFG.TITLE_MAX) || "無題";
   }
   const now = Date.now();
+  const catSel = $("#edCat").value;
+  const catId = (catSel && catSel !== "__new") ? catSel : null;
+  localStorage.setItem(CFG.LS.LAST_CAT, catId || "");
   if(state.editingId){
     const n = state.notes.find(x => x.id === state.editingId);
-    n.title = title; n.body = body; n.updated = now;
+    n.title = title; n.body = body; n.catId = catId; n.updated = now;
     await Store.put(CFG.STORE, n);
-    toast("章を綴じ直しました");
+    toast("メモを綴じ直しました");
   }else{
-    const n = { id: uid(), title, body, created: now, updated: now };
+    const n = { id: uid(), title, body, catId, created: now, updated: now };
     state.notes.push(n);
     await Store.put(CFG.STORE, n);
-    toast(`第${roman(state.notes.length)}章として綴じました`);
+    const catName = catId ? (state.cats.find(c => c.id === catId) || {}).name : "未分類";
+    toast(`「${catName}」に綴じました`);
     state.editingId = n.id;
   }
   $("#editor").classList.remove("show");
@@ -908,7 +1049,7 @@ $("#edDelete").onclick = async () => {
   }
   state.annos = state.annos.filter(a => a.noteId !== state.editingId);
   $("#editor").classList.remove("show");
-  toast("章を取り除きました");
+  toast("メモを取り除きました");
   updateCoverCount(); buildBook(); Cloud.schedule();
 };
 
@@ -922,7 +1063,8 @@ function splitTitle(text, fallback){
 async function addNoteFromText(text, fallbackTitle){
   const { title, body } = splitTitle(text, fallbackTitle);
   const now = Date.now();
-  const n = { id: uid(), title, body: body.trim(), created: now, updated: now };
+  /* 取り込みは「未分類」へ。あとからメモの編集画面で章を選び直せる */
+  const n = { id: uid(), title, body: body.trim(), catId: null, created: now, updated: now };
   state.notes.push(n);
   await Store.put(CFG.STORE, n);
   return n;
@@ -937,7 +1079,7 @@ $("#fileMd").onchange = async e => {
     await addNoteFromText(text, f.name.replace(/\.(md|txt|markdown)$/i, ""));
   }
   e.target.value = "";
-  closeSheets(); toast(`${files.length}件のメモを章として綴じました`);
+  closeSheets(); toast(`${files.length}件のメモを取り込みました(未分類)`);
   updateCoverCount(); buildBook(); Cloud.schedule();
 };
 /* クリップボード */
@@ -970,9 +1112,10 @@ function checkHashImport(){
 
 /* ---------- Backup: 書き出し・復元 ---------- */
 $("#miExport").onclick = () => {
-  const data = { app: "scientia", version: 3, exported: new Date().toISOString(),
+  const data = { app: "scientia", version: 4, exported: new Date().toISOString(),
     notes: state.notes, tombstones: Cloud.tombstones(),
-    annos: state.annos, annoTombs: Cloud.annoTombstones() };
+    annos: state.annos, annoTombs: Cloud.annoTombstones(),
+    cats: state.cats, catTombs: Cloud.catTombstones() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -994,10 +1137,22 @@ $("#fileJson").onchange = async e => {
       if(!n || typeof n.body !== "string") continue;
       if(state.notes.some(x => x.id === n.id)) continue;
       const note = { id: n.id || uid(), title: String(n.title || "無題"), body: n.body,
+        catId: n.catId || null,
         created: n.created || Date.now(), updated: n.updated || Date.now() };
       state.notes.push(note);
       await Store.put(CFG.STORE, note);
       added++;
+    }
+    /* v4バックアップなら章も復元(同idは既存優先) */
+    if(Array.isArray(data.cats)){
+      for(const c of data.cats){
+        if(!c || !c.id || typeof c.name !== "string") continue;
+        if(state.cats.some(x => x.id === c.id)) continue;
+        const cat = { id: c.id, name: c.name,
+          created: c.created || Date.now(), updated: c.updated || Date.now() };
+        state.cats.push(cat);
+        await Store.put(CFG.STORE_CATS, cat);
+      }
     }
     /* v3バックアップなら気づきメモも復元(同idは既存優先) */
     if(Array.isArray(data.annos)){
@@ -1150,6 +1305,60 @@ $("#annoDelete").onclick = async () => {
 };
 $("#miAnnos").onclick = () => openAnnos(null);
 
+/* ---------- Cats: 章の管理(作成・改名・削除) ---------- */
+function renderCats(){
+  const esc = Markdown.esc;
+  const counts = {};
+  for(const n of state.notes){ const k = n.catId || UNCAT_ID; counts[k] = (counts[k] || 0) + 1; }
+  const cats = sortedCats();
+  $("#catList").innerHTML = cats.length
+    ? cats.map(c => `<div class="cat-row">
+        <span class="cat-row-name">${esc(c.name)}</span>
+        <span class="cat-row-count">${counts[c.id] || 0} メモ</span>
+        <button class="cat-row-btn" data-catrename="${c.id}">改名</button>
+        <button class="cat-row-btn danger" data-catdel="${c.id}">削除</button>
+      </div>`).join("") +
+      (counts[UNCAT_ID] ? `<div class="cat-row"><span class="cat-row-name" style="color:var(--ink-soft)">未分類</span>
+        <span class="cat-row-count">${counts[UNCAT_ID]} メモ</span></div>` : "")
+    : `<div class="anno-empty">まだ章がありません。<br>上の「＋」から WORK や LIFE などの章を作り、<br>メモの編集画面で所属する章を選べます。</div>`;
+}
+$("#miCats").onclick = () => { renderCats(); closeSheets(); openSheet("#catSheet"); };
+$("#catAdd").onclick = async () => {
+  const name = (prompt("新しい章の名前(例: WORK、LIFE)") || "").trim();
+  if(!name) return;
+  const c = await createCat(name);
+  renderCats(); buildBook();
+  toast(`章「${c.name}」を作りました`);
+};
+$("#catList").onclick = async e => {
+  const rn = e.target.closest("[data-catrename]");
+  if(rn){
+    const c = state.cats.find(x => x.id === rn.dataset.catrename);
+    const name = (prompt("章の新しい名前", c.name) || "").trim();
+    if(!name || name === c.name) return;
+    c.name = name; c.updated = Date.now();
+    await Store.put(CFG.STORE_CATS, c);
+    renderCats(); buildBook(); Cloud.schedule();
+    toast(`章名を「${name}」に変えました`);
+    return;
+  }
+  const del = e.target.closest("[data-catdel]");
+  if(del){
+    const c = state.cats.find(x => x.id === del.dataset.catdel);
+    const inUse = state.notes.filter(n => n.catId === c.id).length;
+    if(!confirm(`章「${c.name}」を削除します。${inUse ? `中の ${inUse} 件のメモは「未分類」に移ります。` : ""}よろしいですか?`)) return;
+    /* 中のメモは消さずに未分類へ。updated を進めて他端末にも移動を伝える */
+    for(const n of state.notes){
+      if(n.catId === c.id){ n.catId = null; n.updated = Date.now(); await Store.put(CFG.STORE, n); }
+    }
+    await Store.remove(CFG.STORE_CATS, c.id);
+    state.cats = state.cats.filter(x => x.id !== c.id);
+    Cloud.addCatTombstone(c.id);
+    renderCats(); buildBook(); Cloud.schedule();
+    toast(`章「${c.name}」を削除しました(メモは未分類へ)`);
+  }
+};
+
 /* ---------- メニュー残り ---------- */
 $("#miToc").onclick = () => { closeSheets(); goToPage(0); };
 $("#miCover").onclick = () => { closeSheets(); $("#cover").classList.remove("hidden"); };
@@ -1194,6 +1403,17 @@ const Cloud = (() => {
     t.push({ id, ts: Date.now() });
     setAnnoTombstones(t);
   }
+  /* 章(カテゴリ)用の墓標 */
+  const catTombstones = () => {
+    try{ return JSON.parse(localStorage.getItem(CFG.LS.CAT_TOMBS) || "[]"); }
+    catch(e){ return []; }
+  };
+  const setCatTombstones = a => localStorage.setItem(CFG.LS.CAT_TOMBS, JSON.stringify(a));
+  function addCatTombstone(id){
+    const t = catTombstones().filter(x => x.id !== id);
+    t.push({ id, ts: Date.now() });
+    setCatTombstones(t);
+  }
 
   async function gasCall(payload){
     const c = cfg();
@@ -1235,10 +1455,13 @@ const Cloud = (() => {
     return { items: [...map.values()], tombstones: keptTombs };
   }
   const normNote = s => (!s || !s.id || typeof s.body !== "string") ? null :
-    { id: s.id, title: String(s.title || "無題"), body: s.body,
+    { id: s.id, title: String(s.title || "無題"), body: s.body, catId: s.catId || null,
       created: s.created || Date.now(), updated: s.updated || Date.now() };
   const normAnno = s => (!s || !s.id || !s.noteId || typeof s.body !== "string") ? null :
     { id: s.id, noteId: s.noteId, body: s.body,
+      created: s.created || Date.now(), updated: s.updated || Date.now() };
+  const normCat = s => (!s || !s.id || typeof s.name !== "string") ? null :
+    { id: s.id, name: s.name,
       created: s.created || Date.now(), updated: s.updated || Date.now() };
 
   function statusText(){
@@ -1260,8 +1483,10 @@ const Cloud = (() => {
       const arr = v => Array.isArray(v) ? v : [];
       const mN = mergeSet(state.notes, arr(sv.notes), tombstones(), arr(sv.tombstones), normNote);
       const mA = mergeSet(state.annos, arr(sv.annos), annoTombstones(), arr(sv.annoTombs), normAnno);
+      const mC = mergeSet(state.cats, arr(sv.cats), catTombstones(), arr(sv.catTombs), normCat);
       setTombstones(mN.tombstones);
       setAnnoTombstones(mA.tombstones);
+      setCatTombstones(mC.tombstones);
       /* ローカルDBへ反映(消えたものは削除、残りは上書き) */
       const noteIds = new Set(mN.items.map(n => n.id));
       for(const old of state.notes){ if(!noteIds.has(old.id)) await Store.remove(CFG.STORE, old.id); }
@@ -1271,11 +1496,16 @@ const Cloud = (() => {
       for(const old of state.annos){ if(!annoIds.has(old.id)) await Store.remove(CFG.STORE_ANNOS, old.id); }
       for(const a of mA.items) await Store.put(CFG.STORE_ANNOS, a);
       state.annos = mA.items;
-      /* サーバーへ反映。旧版GASは annos/annoTombs を保存せず無視するだけ
-         なので、GAS未更新でも章の同期は壊れない(メモは端末内に残る)。 */
+      const catIds = new Set(mC.items.map(c => c.id));
+      for(const old of state.cats){ if(!catIds.has(old.id)) await Store.remove(CFG.STORE_CATS, old.id); }
+      for(const c of mC.items) await Store.put(CFG.STORE_CATS, c);
+      state.cats = mC.items;
+      /* サーバーへ反映。旧版GASは未知のフィールドを保存せず無視するだけ
+         なので、GAS未更新でもメモ本体の同期は壊れない。 */
       await gasCall({ action: "push", data: {
         notes: state.notes, tombstones: mN.tombstones,
-        annos: state.annos, annoTombs: mA.tombstones } });
+        annos: state.annos, annoTombs: mA.tombstones,
+        cats: state.cats, catTombs: mC.tombstones } });
       localStorage.setItem(CFG.LS.LAST_SYNC, String(Date.now()));
       statusText(); updateCoverCount(); buildBook();
       if(!silent) toast(`同期完了 — 全 ${state.notes.length} 章`);
@@ -1288,7 +1518,8 @@ const Cloud = (() => {
 
   const schedule = debounce(() => { if(cfg().url) sync(true); }, CFG.SYNC_DELAY_MS);
 
-  return { cfg, tombstones, addTombstone, annoTombstones, addAnnoTombstone, statusText, sync, schedule };
+  return { cfg, tombstones, addTombstone, annoTombstones, addAnnoTombstone,
+    catTombstones, addCatTombstone, statusText, sync, schedule };
 })();
 
 $("#miSync").onclick = () => Cloud.sync(false);
@@ -1341,6 +1572,15 @@ const GUIDE = `この本「Scientia(スキエンティア)」へようこそ。S
 - 章題の下の「✒ 編集」、または目次の各行の「✒」でいつでも書き直せます
 - iPadや横向きでは **見開き2ページ** になります
 
+## 章(フォルダ)で整理する
+
+メモが増えてきたら、**WORK / LIFE** のような大きなタイトル(章)で束ねられます。章はフォルダ、メモはその中の書類のイメージです。
+
+- メニューの **「章の管理」** で章を作成・改名・削除できます
+- メモの編集画面の上部で、**所属する章**を選びます(「＋ 新しい章を作る…」でその場で作成も可能)
+- 目次は「章 → 1, 2, 3…」の階層で表示され、本文では章の扉ページが挟まれます
+- 章を選ばなかったメモは「未分類」にまとまります
+
 ## 気づきメモ(注釈)
 
 読み返して気づいたことは、本文に書き込まず **「気づきメモ」** に書き留められます。
@@ -1366,6 +1606,7 @@ Scientia potentia est — 知識は力なり。`;
   await Store.open();
   state.notes = await Store.all(CFG.STORE);
   state.annos = await Store.all(CFG.STORE_ANNOS);
+  state.cats = await Store.all(CFG.STORE_CATS);
   if(!state.notes.length && !localStorage.getItem(CFG.LS.GUIDED)){
     const now = Date.now();
     const g = { id: uid(), title: "はじめに — この本の使い方", body: GUIDE, created: now, updated: now };
