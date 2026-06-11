@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#211b13">
+<title>Scientia — あなたのメモを、一冊の本に</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Shippori+Mincho+B1:wght@400;500;700&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SCIENTIA — design tokens
+   palette: 羊皮紙 / 鉄墨 / ポンペイ朱 / 古青銅
+   ============================================================ */
+:root{
+  --vellum:#efe6d3;        /* 紙面 */
+  --vellum-deep:#e4d7bd;   /* 紙の影 */
+  --ink:#2b2218;           /* 本文の鉄墨 */
+  --ink-soft:#5c503e;      /* 補助文字 */
+  --rubric:#9e2f24;        /* ポンペイ朱(章番号・朱書き) */
+  --bronze:#8a7146;        /* 罫線・装飾 */
+  --bronze-line:#8a714655;
+  --cover:#211b13;         /* 装丁(表紙・背景) */
+  --cover-2:#2e2519;
+  --gold:#c9a25e;
+  --page-w: 0px; --gap: 56px;
+  --serif-jp:'Shippori Mincho B1','Zen Old Mincho','Hiragino Mincho ProN',serif;
+  --roman:'Cinzel',serif;
+  --shadow-page: 0 18px 50px rgba(0,0,0,.45);
+}
+[data-theme="night"]{
+  --vellum:#262019; --vellum-deep:#1d1812;
+  --ink:#d8cbb2; --ink-soft:#9a8a6f;
+  --rubric:#d06a4f; --bronze:#9c8458; --bronze-line:#9c845844;
+  --cover:#100d09; --cover-2:#191410;
+  --shadow-page: 0 18px 50px rgba(0,0,0,.7);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{
+  font-family:var(--serif-jp); color:var(--ink);
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--cover-2), var(--cover) 70%);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  position:fixed; inset:0; overflow:hidden;
+  user-select:none; -webkit-user-select:none;
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,textarea{font-family:inherit}
+::selection{background:var(--rubric);color:#fff}
+
+/* ============ 表紙(カバー) ============ */
+#cover{
+  position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:0; text-align:center;
+  background:
+    radial-gradient(90% 70% at 50% 30%, var(--cover-2), var(--cover) 75%);
+  color:var(--gold); transition:opacity .8s ease, visibility .8s;
+}
+#cover.hidden{opacity:0; visibility:hidden}
+.cover-frame{
+  border:1px solid #c9a25e55; outline:1px solid #c9a25e22; outline-offset:6px;
+  padding:clamp(36px,8vw,72px) clamp(28px,9vw,90px); position:relative;
+}
+.cover-frame::before,.cover-frame::after{
+  content:"❦"; position:absolute; left:50%; transform:translateX(-50%);
+  color:#c9a25e88; font-size:15px; background:var(--cover); padding:0 12px;
+}
+.cover-frame::before{top:-10px}
+.cover-frame::after{bottom:-10px}
+.cover-eyebrow{font-family:var(--roman); font-size:11px; letter-spacing:.55em; text-indent:.55em; color:#c9a25e99; margin-bottom:22px}
+.cover-title{
+  font-family:var(--roman); font-weight:700;
+  font-size:clamp(40px,11vw,84px); letter-spacing:.18em; text-indent:.18em;
+  line-height:1; color:var(--gold);
+  text-shadow:0 1px 0 #00000088, 0 0 36px #c9a25e30;
+}
+.cover-rule{width:120px;height:1px;background:linear-gradient(90deg,transparent,#c9a25e99,transparent);margin:26px auto 18px}
+.cover-sub{font-size:13px; letter-spacing:.32em; text-indent:.32em; color:#cbb792}
+.cover-open{
+  margin-top:46px; font-family:var(--roman); font-size:13px; letter-spacing:.4em; text-indent:.4em;
+  color:var(--cover); background:linear-gradient(180deg,#d9b876,#b08c4e);
+  padding:15px 38px; border-radius:2px; box-shadow:0 6px 24px #00000066, inset 0 1px 0 #ffffff66;
+  transition:transform .2s, box-shadow .2s;
+}
+.cover-open:active{transform:translateY(2px)}
+.cover-count{margin-top:18px;font-size:11px;letter-spacing:.2em;color:#9d8a66}
+
+/* ============ アプリ骨格 ============ */
+#app{position:absolute; inset:0; display:flex; flex-direction:column;
+  padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);}
+header.bar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; color:var(--gold);
+}
+.bar .wordmark{font-family:var(--roman); font-weight:600; font-size:15px; letter-spacing:.34em; text-indent:.34em; color:var(--gold)}
+.bar-group{display:flex; gap:4px}
+.icon-btn{
+  width:40px;height:40px;display:grid;place-items:center;border-radius:8px;
+  color:#cbb792; font-size:18px; transition:background .2s;
+}
+.icon-btn:active{background:#ffffff14}
+.icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* ============ 書見台(本の領域) ============ */
+#stage{flex:1; position:relative; display:flex; align-items:stretch; justify-content:center; padding:6px 14px 4px; min-height:0}
+#book{
+  position:relative; width:100%; max-width:1080px; height:100%;
+  background:
+    linear-gradient(105deg, rgba(0,0,0,.12), rgba(0,0,0,0) 8%),
+    radial-gradient(140% 120% at 50% -20%, #fff8ea08, transparent),
+    linear-gradient(180deg, var(--vellum), var(--vellum-deep));
+  border-radius:4px 10px 10px 4px;
+  box-shadow:var(--shadow-page),
+    inset 0 0 60px rgba(120,90,40,.12),
+    inset 0 1px 0 #ffffff33;
+}
+/* 重なった小口(ページの束) */
+#book::after{
+  content:""; position:absolute; top:5px; bottom:5px; right:-7px; width:7px;
+  background:repeating-linear-gradient(90deg, var(--vellum-deep) 0 1px, #b8a27c 1px 2px);
+  border-radius:0 4px 4px 0; box-shadow:2px 0 6px rgba(0,0,0,.35);
+}
+#book.spread::before{ /* 見開き時の中央のノド */
+  content:""; position:absolute; top:0; bottom:0; left:50%; width:70px; transform:translateX(-50%);
+  background:linear-gradient(90deg, transparent, rgba(60,40,15,.16) 48%, rgba(60,40,15,.22) 50%, rgba(60,40,15,.16) 52%, transparent);
+  pointer-events:none; z-index:3;
+}
+#viewport{position:absolute; inset:0; overflow:hidden; border-radius:inherit}
+#flow{
+  position:relative; height:100%;
+  column-fill:auto; column-gap:var(--gap); column-width:var(--page-w);
+  padding:0; transition:transform .45s cubic-bezier(.22,.8,.3,1);
+  will-change:transform;
+  user-select:text; -webkit-user-select:text;
+}
+#flow.noanim{transition:none}
+
+/* ページ余白は段組み内の内側パディングで表現 */
+.pagepad{padding:0 8px}
+
+/* ---- タイポグラフィ(本文) ---- */
+#flow{font-size:16px; line-height:2.05; color:var(--ink); letter-spacing:.02em}
+#flow h1.ch-title{
+  font-size:24px; font-weight:700; line-height:1.6; letter-spacing:.06em;
+  margin:8px 0 14px; break-after:avoid;
+}
+.ch-head{break-inside:avoid; padding-top:26px; position:relative}
+.ch-no{
+  font-family:var(--roman); font-weight:600; color:var(--rubric);
+  font-size:13px; letter-spacing:.42em; text-indent:.42em;
+  display:flex; align-items:center; gap:12px; margin-bottom:6px;
+}
+.ch-no::after{content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--bronze-line),transparent)}
+.ch-meta{font-size:11px; color:var(--ink-soft); letter-spacing:.12em; margin-bottom:18px; display:flex; align-items:center; gap:10px}
+.ch-edit{
+  font-size:11px; color:var(--bronze); border:1px solid var(--bronze-line);
+  padding:3px 12px; border-radius:99px; letter-spacing:.18em;
+}
+.ch-edit:active{background:var(--bronze-line)}
+.ch-end{display:flex;justify-content:center;color:var(--bronze);font-size:14px;padding:26px 0 40px;letter-spacing:1em;text-indent:1em}
+
+#flow h2{font-size:19px;margin:26px 0 10px;font-weight:700;letter-spacing:.05em;break-after:avoid;
+  border-left:3px solid var(--rubric); padding-left:12px; line-height:1.6}
+#flow h3{font-size:17px;margin:22px 0 8px;font-weight:700;break-after:avoid;line-height:1.6}
+#flow p{margin:0 0 1.1em; text-align:justify}
+#flow ul,#flow ol{margin:0 0 1.1em 1.5em}
+#flow li{margin-bottom:.3em}
+#flow blockquote{
+  margin:1.2em 0; padding:.2em 1.2em; color:var(--ink-soft);
+  border-left:2px solid var(--bronze); font-style:normal;
+}
+#flow code{
+  font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:.86em;
+  background:rgba(120,90,40,.13); padding:.15em .45em; border-radius:4px;
+}
+#flow pre{
+  background:rgba(60,45,20,.1); border:1px solid var(--bronze-line); border-radius:6px;
+  padding:14px; margin:0 0 1.2em; overflow-x:auto; line-height:1.7; break-inside:avoid;
+}
+#flow pre code{background:none;padding:0}
+#flow a{color:var(--rubric); text-decoration:underline; text-underline-offset:3px}
+#flow hr{border:none; text-align:center; margin:1.6em 0; height:auto}
+#flow hr::after{content:"❦"; color:var(--bronze); font-size:14px}
+#flow img{max-width:100%; border:1px solid var(--bronze-line)}
+#flow strong{font-weight:700}
+#flow em{font-style:italic}
+
+/* ---- 目次(INDEX) ---- */
+.toc-title{
+  font-family:var(--roman); font-weight:600; font-size:20px;
+  letter-spacing:.5em; text-indent:.5em; text-align:center; color:var(--ink);
+  margin:30px 0 4px;
+}
+.toc-sub{text-align:center; font-size:11px; color:var(--ink-soft); letter-spacing:.3em; text-indent:.3em; margin-bottom:26px}
+.toc-item{
+  display:flex; align-items:baseline; gap:10px; width:100%; text-align:left;
+  padding:11px 2px; font-size:15.5px; line-height:1.6; color:var(--ink);
+  border-bottom:1px dashed var(--bronze-line); break-inside:avoid;
+}
+.toc-item:active{background:rgba(158,47,36,.07)}
+.toc-num{font-family:var(--roman); font-weight:600; color:var(--rubric); font-size:13px; min-width:2.4em}
+.toc-name{flex:0 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.toc-dots{flex:1; border-bottom:1px dotted var(--bronze); transform:translateY(-4px); min-width:14px}
+.toc-page{font-family:var(--roman); font-size:12px; color:var(--ink-soft)}
+.toc-empty{padding:30px 6px; color:var(--ink-soft); font-size:14px; line-height:2.2; text-align:center}
+
+/* ---- ページめくり操作 ---- */
+.tapzone{position:absolute; top:0; bottom:0; width:13%; z-index:4}
+#tapL{left:0} #tapR{right:0}
+footer.pager{
+  display:flex; align-items:center; justify-content:center; gap:18px;
+  padding:8px 0 10px; color:#b9a47c;
+}
+.pager .pg-btn{
+  font-size:17px; width:44px; height:36px; display:grid; place-items:center;
+  color:#cbb792; border:1px solid #c9a25e33; border-radius:99px;
+}
+.pager .pg-btn:active{background:#ffffff12}
+.pager .pg-btn:disabled{opacity:.3}
+#pageLabel{font-family:var(--roman); font-size:12px; letter-spacing:.28em; min-width:120px; text-align:center}
+
+/* ============ 共通オーバーレイ・シート ============ */
+.veil{position:absolute; inset:0; background:rgba(15,11,6,.6); z-index:70;
+  opacity:0; visibility:hidden; transition:.25s; backdrop-filter:blur(2px)}
+.veil.show{opacity:1; visibility:visible}
+.sheet{
+  position:absolute; left:50%; bottom:0; transform:translate(-50%,8%) ;
+  width:min(620px,100%); max-height:88%; overflow:auto; z-index:71;
+  background:linear-gradient(180deg,var(--vellum),var(--vellum-deep));
+  color:var(--ink); border-radius:14px 14px 0 0; box-shadow:0 -10px 50px rgba(0,0,0,.5);
+  padding:20px 20px calc(22px + env(safe-area-inset-bottom));
+  opacity:0; visibility:hidden; transition:.3s cubic-bezier(.22,.8,.3,1);
+}
+.sheet.show{opacity:1; visibility:visible; transform:translate(-50%,0)}
+.sheet h2{font-size:16px; letter-spacing:.24em; text-indent:.24em; text-align:center; margin-bottom:4px; font-weight:700}
+.sheet .sheet-cap{text-align:center; font-size:11px; color:var(--ink-soft); letter-spacing:.14em; margin-bottom:16px}
+.menu-item{
+  display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+  padding:14px 8px; font-size:15px; border-bottom:1px solid var(--bronze-line);
+}
+.menu-item:active{background:rgba(158,47,36,.07)}
+.menu-item .mi-ico{width:26px; text-align:center; color:var(--rubric); font-size:16px; flex:none}
+.menu-item .mi-sub{display:block; font-size:11px; color:var(--ink-soft); margin-top:2px; letter-spacing:.05em}
+.menu-item.danger .mi-ico{color:#8a3324}
+
+/* ============ 執筆(エディタ) ============ */
+#editor{
+  position:absolute; inset:0; z-index:80; display:flex; flex-direction:column;
+  background:linear-gradient(180deg,var(--vellum),var(--vellum-deep));
+  color:var(--ink); transform:translateY(102%); transition:transform .35s cubic-bezier(.22,.8,.3,1);
+  padding-top:env(safe-area-inset-top);
+}
+#editor.show{transform:translateY(0)}
+.ed-bar{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--bronze-line)}
+.ed-bar .ed-act{font-size:14px; letter-spacing:.14em; padding:8px 14px; color:var(--ink-soft)}
+.ed-bar .ed-save{color:#fff; background:var(--rubric); border-radius:99px; padding:8px 22px; letter-spacing:.2em; box-shadow:0 3px 10px rgba(158,47,36,.35)}
+.ed-bar .ed-save:active{transform:translateY(1px)}
+#edTitle{
+  border:none; background:transparent; outline:none; width:100%;
+  font-size:21px; font-weight:700; padding:18px 20px 6px; color:var(--ink);
+  font-family:var(--serif-jp); letter-spacing:.04em;
+}
+#edTitle::placeholder,#edBody::placeholder{color:var(--ink-soft); opacity:.55}
+.ed-rule{height:1px; margin:4px 20px 0; background:linear-gradient(90deg,var(--rubric) 0 56px, var(--bronze-line) 56px)}
+#edBody{
+  flex:1; border:none; background:transparent; outline:none; resize:none;
+  padding:14px 20px calc(20px + env(safe-area-inset-bottom)); font-size:16px; line-height:2;
+  color:var(--ink); font-family:var(--serif-jp);
+}
+.ed-hint{font-size:10.5px; color:var(--ink-soft); padding:0 20px 8px; letter-spacing:.06em}
+
+/* ============ 検索 ============ */
+#searchSheet .srch-box{
+  display:flex; gap:8px; align-items:center; border:1px solid var(--bronze);
+  border-radius:99px; padding:10px 16px; margin-bottom:14px; background:rgba(255,255,255,.25);
+}
+[data-theme="night"] #searchSheet .srch-box{background:rgba(0,0,0,.2)}
+#srchInput{flex:1; border:none; background:none; outline:none; font-size:16px; color:var(--ink)}
+.srch-hit{display:block; width:100%; text-align:left; padding:12px 6px; border-bottom:1px solid var(--bronze-line)}
+.srch-hit .sh-t{font-weight:700; font-size:15px}
+.srch-hit .sh-b{font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.7;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.srch-hit mark{background:rgba(158,47,36,.18); color:var(--rubric); font-weight:700}
+
+/* ============ クラウド同期 ============ */
+.cld-label{display:block;font-size:11px;letter-spacing:.18em;color:var(--ink-soft);margin:14px 4px 6px}
+.cld-input{
+  width:100%;border:1px solid var(--bronze);border-radius:8px;background:rgba(255,255,255,.3);
+  padding:12px 14px;font-size:14px;color:var(--ink);outline:none;
+}
+[data-theme="night"] .cld-input{background:rgba(0,0,0,.25)}
+.cld-input:focus{border-color:var(--rubric)}
+.cld-note{font-size:11.5px;line-height:1.9;color:var(--ink-soft);margin:14px 4px;letter-spacing:.03em}
+.cld-row{display:flex;gap:10px;margin-top:8px}
+.cld-btn{flex:1;padding:13px;border-radius:99px;font-size:13.5px;letter-spacing:.14em}
+.cld-btn.solid{color:#fff;background:var(--rubric);box-shadow:0 3px 10px rgba(158,47,36,.35)}
+.cld-btn.ghost{color:var(--ink-soft);border:1px solid var(--bronze-line)}
+.cld-btn:active{transform:translateY(1px)}
+#miSync.busy .mi-ico{animation:spin 1.2s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============ トースト ============ */
+#toast{
+  position:absolute; left:50%; bottom:calc(86px + env(safe-area-inset-bottom)); transform:translate(-50%,16px);
+  background:var(--ink); color:var(--vellum); font-size:13px; letter-spacing:.12em;
+  padding:11px 24px; border-radius:99px; z-index:99; opacity:0; visibility:hidden;
+  transition:.3s; box-shadow:0 8px 28px rgba(0,0,0,.4); max-width:86%; text-align:center;
+}
+[data-theme="night"] #toast{background:#e8dcc2; color:#211b13}
+#toast.show{opacity:1; visibility:visible; transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important; animation:none!important}
+}
+@media (max-width:480px){
+  :root{--gap:40px}
+  #flow{font-size:15.5px}
+  #stage{padding:2px 10px 2px}
+}
+</style>
+</head>
+<body data-theme="vellum">
+
+<!-- ======== 表紙 ======== -->
+<div id="cover">
+  <div class="cover-frame">
+    <div class="cover-eyebrow">EX LIBRIS MEIS</div>
+    <div class="cover-title">SCIENTIA</div>
+    <div class="cover-rule"></div>
+    <div class="cover-sub">知 識 の 書</div>
+    <button class="cover-open" id="openBook">A P E R I R E ・ 開 く</button>
+    <div class="cover-count" id="coverCount"></div>
+  </div>
+</div>
+
+<!-- ======== 本体 ======== -->
+<div id="app">
+  <header class="bar">
+    <button class="icon-btn" id="btnMenu" aria-label="メニュー">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="wordmark">SCIENTIA</div>
+    <div class="bar-group">
+      <button class="icon-btn" id="btnSearch" aria-label="検索">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+      </button>
+      <button class="icon-btn" id="btnNew" aria-label="新しい章を書く">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <div id="book">
+      <div id="viewport"><div id="flow"></div></div>
+      <div class="tapzone" id="tapL"></div>
+      <div class="tapzone" id="tapR"></div>
+    </div>
+  </div>
+
+  <footer class="pager">
+    <button class="pg-btn" id="pgPrev" aria-label="前のページ">‹</button>
+    <div id="pageLabel">—</div>
+    <button class="pg-btn" id="pgNext" aria-label="次のページ">›</button>
+  </footer>
+</div>
+
+<!-- ======== メニュー ======== -->
+<div class="veil" id="veil"></div>
+<div class="sheet" id="menuSheet">
+  <h2>書 庫</h2>
+  <div class="sheet-cap">BIBLIOTHECA</div>
+  <button class="menu-item" id="miToc"><span class="mi-ico">⌖</span><span>目次へ戻る<span class="mi-sub">INDEX — 巻頭の目次ページを開く</span></span></button>
+  <button class="menu-item" id="miNew"><span class="mi-ico">✒</span><span>新しい章を書く<span class="mi-sub">この場で書いた文章が新しい章になります</span></span></button>
+  <button class="menu-item" id="miFiles"><span class="mi-ico">⇲</span><span>ファイルを取り込む<span class="mi-sub">Obsidianの .md / テキスト .txt(複数可)</span></span></button>
+  <button class="menu-item" id="miClip"><span class="mi-ico">⎘</span><span>クリップボードから取り込む<span class="mi-sub">iPhoneの共有→ショートカット経由はこちら</span></span></button>
+  <button class="menu-item" id="miTheme"><span class="mi-ico">☾</span><span>装丁を変える<span class="mi-sub">羊皮紙 / 夜の書斎</span></span></button>
+  <button class="menu-item" id="miExport"><span class="mi-ico">⛃</span><span>蔵書を書き出す(バックアップ)<span class="mi-sub">全章をJSONファイルとして保存</span></span></button>
+  <button class="menu-item" id="miImportJson"><span class="mi-ico">⛏</span><span>蔵書を読み込む(復元)<span class="mi-sub">書き出したJSONから復元・統合</span></span></button>
+  <button class="menu-item" id="miSync"><span class="mi-ico">☁</span><span>クラウドと同期<span class="mi-sub" id="syncStatus">未設定 — まず下の「同期の設定」から</span></span></button>
+  <button class="menu-item" id="miCloudCfg"><span class="mi-ico">⚙</span><span>クラウド同期の設定<span class="mi-sub">Googleドライブ(GAS)と接続</span></span></button>
+  <button class="menu-item" id="miCover"><span class="mi-ico">▣</span><span>表紙を閉じる<span class="mi-sub">表紙画面に戻ります</span></span></button>
+  <input type="file" id="fileMd" accept=".md,.txt,.markdown,text/plain,text/markdown" multiple hidden>
+  <input type="file" id="fileJson" accept=".json,application/json" hidden>
+</div>
+
+<!-- ======== クラウド同期設定 ======== -->
+<div class="sheet" id="cloudSheet">
+  <h2>同 期 の 設 定</h2>
+  <div class="sheet-cap">NUBES — Googleドライブと繋ぐ</div>
+  <label class="cld-label">GASウェブアプリのURL</label>
+  <input class="cld-input" id="cldUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" autocorrect="off">
+  <label class="cld-label">合言葉(GAS側のKEYと同じもの)</label>
+  <input class="cld-input" id="cldKey" type="text" placeholder="例: mea-scientia-2026" autocapitalize="off" autocorrect="off">
+  <div class="cld-note">付属の <b>scientia-gas.gs</b> をGoogle Apps Scriptに貼り付けてウェブアプリとして公開し、そのURLと合言葉をここに入力してください。データはあなたのGoogleドライブ内の「scientia-library.json」に保存されます。</div>
+  <div class="cld-row">
+    <button class="cld-btn ghost" id="cldOff">同期を解除</button>
+    <button class="cld-btn solid" id="cldSave">保存して接続を確認</button>
+  </div>
+</div>
+
+<!-- ======== 検索 ======== -->
+<div class="sheet" id="searchSheet">
+  <h2>検 索</h2>
+  <div class="sheet-cap">QUAERERE</div>
+  <div class="srch-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+    <input id="srchInput" type="search" placeholder="題名・本文から探す" enterkeyhint="search">
+  </div>
+  <div id="srchResults"></div>
+</div>
+
+<!-- ======== エディタ ======== -->
+<div id="editor">
+  <div class="ed-bar">
+    <button class="ed-act" id="edCancel">閉じる</button>
+    <button class="ed-act" id="edDelete" style="color:#8a3324">削除</button>
+    <button class="ed-save" id="edSave">綴 じ る</button>
+  </div>
+  <input id="edTitle" placeholder="章の題名(目次に載ります)">
+  <div class="ed-rule"></div>
+  <textarea id="edBody" placeholder="本文。Markdownが使えます — # 見出し、**太字**、- 箇条書き、> 引用 など"></textarea>
+  <div class="ed-hint">✒ 1行目が「# 見出し」の場合、題名が空ならそれを題名として採用します</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   SCIENTIA — logic
+   ============================================================ */
+"use strict";
+const $=s=>document.querySelector(s);
+
+/* ---------- IndexedDB ---------- */
+const DB_NAME="scientia-db", STORE="notes";
+let db;
+function openDB(){return new Promise((res,rej)=>{
+  const rq=indexedDB.open(DB_NAME,1);
+  rq.onupgradeneeded=e=>{const d=e.target.result;
+    if(!d.objectStoreNames.contains(STORE)){
+      const st=d.createObjectStore(STORE,{keyPath:"id"});
+      st.createIndex("created","created");
+    }};
+  rq.onsuccess=e=>{db=e.target.result;res()};
+  rq.onerror=e=>rej(e);
+});}
+const tx=mode=>db.transaction(STORE,mode).objectStore(STORE);
+const dbAll=()=>new Promise(r=>{const q=tx("readonly").getAll();q.onsuccess=()=>r(q.result||[])});
+const dbPut=n=>new Promise(r=>{tx("readwrite").put(n).onsuccess=()=>r()});
+const dbDel=id=>new Promise(r=>{tx("readwrite").delete(id).onsuccess=()=>r()});
+const uid=()=> Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+
+/* ---------- 状態 ---------- */
+let notes=[];            // {id,title,body,created,updated}
+let curPage=0;           // 左端に見えているページ番号(0始まり)
+let totalPages=1;
+let spread=false;        // 見開きか
+let pageStride=0;        // 1ページ分の横移動量
+let chapterPages={};     // noteId -> 開始ページ
+let editingId=null;
+
+/* ---------- ローマ数字 ---------- */
+function roman(n){
+  const t=[[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],
+    [50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+  let s="";for(const[v,r]of t){while(n>=v){s+=r;n-=v}}return s||"–";
+}
+
+/* ---------- Markdown(小型レンダラ) ---------- */
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function inline(s){
+  return s
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g,(m,a,u)=>/^https?:/i.test(u)?`<img src="${u}" alt="${a}" loading="lazy">`:esc(a))
+    .replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g,(m,a,u)=>/^https?:/i.test(u)?`<a href="${u}" target="_blank" rel="noopener">${a}</a>`:a)
+    .replace(/`([^`]+)`/g,"<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+    .replace(/__([^_]+)__/g,"<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g,"<em>$1</em>")
+    .replace(/~~([^~]+)~~/g,"<del>$1</del>");
+}
+function md(src){
+  const lines=esc(src.replace(/\r\n?/g,"\n")).split("\n");
+  let html="",i=0,para=[],list=null,quote=[];
+  const flushP=()=>{if(para.length){html+="<p>"+inline(para.join("<br>"))+"</p>";para=[]}};
+  const flushL=()=>{if(list){html+=`<${list.t}>`+list.items.map(x=>"<li>"+inline(x)+"</li>").join("")+`</${list.t}>`;list=null}};
+  const flushQ=()=>{if(quote.length){html+="<blockquote><p>"+inline(quote.join("<br>"))+"</p></blockquote>";quote=[]}};
+  const flushAll=()=>{flushP();flushL();flushQ()};
+  while(i<lines.length){
+    const l=lines[i];
+    if(/^```/.test(l)){flushAll();let code=[];i++;
+      while(i<lines.length&&!/^```/.test(lines[i])){code.push(lines[i]);i++}
+      html+="<pre><code>"+code.join("\n")+"</code></pre>";i++;continue}
+    let m;
+    if(m=l.match(/^(#{1,6})\s+(.*)/)){flushAll();const lv=Math.min(m[1].length+1,4);
+      html+=`<h${lv}>`+inline(m[2])+`</h${lv}>`;i++;continue}
+    if(/^(\s*)([-*+]|\d+[.)])\s+/.test(l)){flushP();flushQ();
+      const ord=/^\s*\d/.test(l);const item=l.replace(/^(\s*)([-*+]|\d+[.)])\s+/,"");
+      const t=ord?"ol":"ul";
+      if(!list||list.t!==t){flushL();list={t,items:[]}}
+      list.items.push(item.replace(/^\[( |x)\]\s*/i,(mm,c)=>c.toLowerCase()==="x"?"☑ ":"☐ "));
+      i++;continue}
+    if(/^&gt;\s?/.test(l)){flushP();flushL();quote.push(l.replace(/^&gt;\s?/,""));i++;continue}
+    if(/^(\*{3,}|-{3,}|_{3,})\s*$/.test(l)){flushAll();html+="<hr>";i++;continue}
+    if(/^\s*$/.test(l)){flushAll();i++;continue}
+    flushL();flushQ();para.push(l);i++;
+  }
+  flushAll();return html;
+}
+
+/* ---------- 描画(本の組版) ---------- */
+const flow=$("#flow"), book=$("#book"), viewport=$("#viewport");
+function fmtDate(ts){const d=new Date(ts);return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`}
+
+function buildBook(){
+  const sorted=[...notes].sort((a,b)=>a.created-b.created);
+  let html="";
+  /* — 目次 — */
+  html+=`<div class="pagepad"><div class="toc-block" id="tocTop">
+    <div class="toc-title">INDEX</div>
+    <div class="toc-sub">目 次 ・ 全 ${sorted.length} 章</div>`;
+  if(!sorted.length){
+    html+=`<div class="toc-empty">まだ章がありません。<br>右上の「＋」から最初の一章を書くか、<br>メニューからメモを取り込んでください。</div>`;
+  }else{
+    sorted.forEach((n,idx)=>{
+      html+=`<button class="toc-item" data-go="${n.id}">
+        <span class="toc-num">${roman(idx+1)}</span>
+        <span class="toc-name">${esc(n.title||"無題")}</span>
+        <span class="toc-dots"></span>
+        <span class="toc-page" data-pageof="${n.id}">·</span></button>`;
+    });
+  }
+  html+=`</div>`;
+  /* — 各章 — */
+  sorted.forEach((n,idx)=>{
+    html+=`<div class="ch-head" id="ch-${n.id}">
+      <div class="ch-no">CAPUT ${roman(idx+1)}</div>
+      <h1 class="ch-title">${esc(n.title||"無題")}</h1>
+      <div class="ch-meta"><span>${fmtDate(n.created)}</span>
+        <button class="ch-edit" data-edit="${n.id}">✒ 編集</button></div>
+    </div>
+    <div class="ch-body">${md(n.body||"")}</div>
+    <div class="ch-end">❦</div>`;
+  });
+  html+=`</div>`;
+  flow.innerHTML=html;
+  layout(true);
+}
+
+/* 段組み=ページ。寸法を測ってページ送り量を決める */
+function layout(keepChapter){
+  const visibleId=keepChapter?currentChapterId():null;
+  const w=viewport.clientWidth;
+  spread = w>=760;
+  book.classList.toggle("spread",spread);
+  const gap = spread?70:40;
+  const pad = spread?56:28;
+  const pageW = spread ? (w-gap)/2 - pad*2 : w - pad*2;
+  flow.style.padding=`26px ${pad}px 30px`;
+  flow.style.columnWidth=pageW+"px";
+  flow.style.columnGap=(gap+pad*2)+"px";
+  pageStride=pageW+gap+pad*2;
+  // 測定
+  requestAnimationFrame(()=>{
+    totalPages=Math.max(1,Math.round((flow.scrollWidth+gap)/pageStride));
+    chapterPages={};
+    const base=flow.getBoundingClientRect().left;
+    flow.querySelectorAll(".ch-head").forEach(el=>{
+      const id=el.id.slice(3);
+      const dx=el.getBoundingClientRect().left-base;
+      chapterPages[id]=Math.max(0,Math.round((dx-pad)/pageStride));
+    });
+    // 目次にページ数を書き込む
+    flow.querySelectorAll("[data-pageof]").forEach(el=>{
+      const p=chapterPages[el.dataset.pageof];
+      el.textContent=(p!==undefined)?p+1:"·";
+    });
+    if(visibleId&&chapterPages[visibleId]!==undefined) curPage=chapterPages[visibleId];
+    goToPage(curPage,true);
+  });
+}
+function currentChapterId(){
+  let best=null;
+  for(const[id,p]of Object.entries(chapterPages)){if(p<=curPage)best=id}
+  return best;
+}
+function stepSize(){return spread?2:1}
+function goToPage(p,instant){
+  const step=stepSize();
+  p=Math.max(0,Math.min(p,totalPages-1));
+  if(spread) p=p-(p%2);          // 見開きは偶数ページ起点
+  curPage=p;
+  flow.classList.toggle("noanim",!!instant);
+  flow.style.transform=`translateX(${-p*pageStride}px)`;
+  if(instant)requestAnimationFrame(()=>flow.classList.remove("noanim"));
+  const last=spread?Math.min(p+2,totalPages):p+1;
+  $("#pageLabel").textContent= spread&&p+2<=totalPages
+    ? `${p+1} – ${p+2} / ${totalPages}` : `${Math.min(p+1,totalPages)} / ${totalPages}`;
+  $("#pgPrev").disabled=p<=0;
+  $("#pgNext").disabled=p+step>=totalPages;
+}
+const next=()=>goToPage(curPage+stepSize());
+const prev=()=>goToPage(curPage-stepSize());
+
+/* ---------- 操作 ---------- */
+$("#pgNext").onclick=next; $("#pgPrev").onclick=prev;
+$("#tapR").onclick=next;   $("#tapL").onclick=prev;
+document.addEventListener("keydown",e=>{
+  if($("#editor").classList.contains("show"))return;
+  if(e.key==="ArrowRight"||e.key===" ")next();
+  if(e.key==="ArrowLeft")prev();
+});
+/* スワイプ */
+let tX=null,tY=null;
+viewport.addEventListener("touchstart",e=>{tX=e.touches[0].clientX;tY=e.touches[0].clientY},{passive:true});
+viewport.addEventListener("touchend",e=>{
+  if(tX===null)return;
+  const dx=e.changedTouches[0].clientX-tX, dy=e.changedTouches[0].clientY-tY;
+  if(Math.abs(dx)>56&&Math.abs(dx)>Math.abs(dy)*1.4){dx<0?next():prev()}
+  tX=null;
+},{passive:true});
+/* 章内リンク類のクリック */
+flow.addEventListener("click",e=>{
+  const go=e.target.closest("[data-go]");
+  if(go){const p=chapterPages[go.dataset.go];if(p!==undefined)goToPage(p);return}
+  const ed=e.target.closest("[data-edit]");
+  if(ed){openEditor(ed.dataset.edit);return}
+});
+let resizeTm;
+window.addEventListener("resize",()=>{clearTimeout(resizeTm);resizeTm=setTimeout(()=>layout(true),180)});
+
+/* ---------- 表紙 ---------- */
+$("#openBook").onclick=()=>$("#cover").classList.add("hidden");
+function updateCoverCount(){
+  $("#coverCount").textContent=notes.length?`全 ${notes.length} 章を所蔵`:"最初の一章があなたを待っています";
+}
+
+/* ---------- シート開閉 ---------- */
+const veil=$("#veil");
+function openSheet(sel){veil.classList.add("show");$(sel).classList.add("show")}
+function closeSheets(){veil.classList.remove("show");
+  document.querySelectorAll(".sheet").forEach(s=>s.classList.remove("show"))}
+veil.onclick=closeSheets;
+$("#btnMenu").onclick=()=>openSheet("#menuSheet");
+$("#btnSearch").onclick=()=>{openSheet("#searchSheet");setTimeout(()=>$("#srchInput").focus(),300)};
+
+/* ---------- トースト ---------- */
+let toastTm;
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");
+  clearTimeout(toastTm);toastTm=setTimeout(()=>t.classList.remove("show"),2400)}
+
+/* ---------- エディタ ---------- */
+function openEditor(id){
+  editingId=id||null;
+  const n=id?notes.find(x=>x.id===id):null;
+  $("#edTitle").value=n?n.title:"";
+  $("#edBody").value=n?n.body:"";
+  $("#edDelete").style.visibility=n?"visible":"hidden";
+  $("#editor").classList.add("show");
+  closeSheets();
+  setTimeout(()=>(n?$("#edBody"):$("#edTitle")).focus(),350);
+}
+$("#btnNew").onclick=()=>openEditor(null);
+$("#miNew").onclick=()=>openEditor(null);
+$("#edCancel").onclick=()=>$("#editor").classList.remove("show");
+$("#edSave").onclick=async()=>{
+  let title=$("#edTitle").value.trim();
+  let body=$("#edBody").value.replace(/^\s+|\s+$/g,"");
+  if(!title){
+    const m=body.match(/^#{1,6}\s+(.+)/);
+    if(m){title=m[1].trim();body=body.replace(/^#{1,6}\s+.+\n?/,"")}
+    else title=(body.split("\n")[0]||"").slice(0,40)||"無題";
+  }
+  if(!title&&!body){toast("題名か本文を入れてください");return}
+  const now=Date.now();
+  if(editingId){
+    const n=notes.find(x=>x.id===editingId);
+    n.title=title;n.body=body;n.updated=now;await dbPut(n);
+    toast("章を綴じ直しました");
+  }else{
+    const n={id:uid(),title,body,created:now,updated:now};
+    notes.push(n);await dbPut(n);
+    toast(`第${roman(notes.length)}章として綴じました`);
+    editingId=n.id;
+  }
+  $("#editor").classList.remove("show");
+  const keep=editingId;updateCoverCount();buildBook();scheduleSync();
+  setTimeout(()=>{if(chapterPages[keep]!==undefined)goToPage(chapterPages[keep])},120);
+};
+$("#edDelete").onclick=async()=>{
+  if(!editingId)return;
+  const n=notes.find(x=>x.id===editingId);
+  if(!confirm(`「${n.title}」をこの本から取り除きます。よろしいですか?`))return;
+  await dbDel(editingId);
+  notes=notes.filter(x=>x.id!==editingId);
+  addTomb(editingId);
+  $("#editor").classList.remove("show");
+  toast("章を取り除きました");
+  updateCoverCount();buildBook();scheduleSync();
+};
+
+/* ---------- 取り込み(テキスト→章) ---------- */
+function titleFromText(text,fallback){
+  const m=text.match(/^\s*#{1,6}\s+(.+)/);
+  if(m)return{title:m[1].trim(),body:text.replace(/^\s*#{1,6}\s+.+\n?/,"")};
+  const first=(text.split("\n").find(l=>l.trim())||"").trim();
+  return{title:(fallback||first.slice(0,40)||"無題"),body:text};
+}
+async function addNoteFromText(text,fallbackTitle){
+  const{t,b}=(({title,body})=>({t:title,b:body}))(titleFromText(text,fallbackTitle));
+  const now=Date.now();
+  const n={id:uid(),title:t,body:b.trim(),created:now,updated:now};
+  notes.push(n);await dbPut(n);return n;
+}
+/* ファイル(.md/.txt) */
+$("#miFiles").onclick=()=>$("#fileMd").click();
+$("#fileMd").onchange=async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  for(const f of files){
+    const text=await f.text();
+    await addNoteFromText(text,f.name.replace(/\.(md|txt|markdown)$/i,""));
+  }
+  e.target.value="";
+  closeSheets();toast(`${files.length}件のメモを章として綴じました`);
+  updateCoverCount();buildBook();scheduleSync();
+};
+/* クリップボード */
+$("#miClip").onclick=async()=>{
+  try{
+    const text=await navigator.clipboard.readText();
+    if(!text||!text.trim()){toast("クリップボードが空です");return}
+    const n=await addNoteFromText(text);
+    closeSheets();toast(`「${n.title}」を綴じました`);
+    updateCoverCount();buildBook();scheduleSync();
+    setTimeout(()=>{if(chapterPages[n.id]!==undefined)goToPage(chapterPages[n.id])},150);
+  }catch(err){
+    closeSheets();
+    openEditor(null);
+    toast("読み取り不可のため、貼り付けて綴じてください");
+  }
+};
+/* URL経由の取り込み(ホスティング時): #add=URLエンコード文 */
+function checkHashImport(){
+  if(location.hash.startsWith("#add=")){
+    try{
+      const text=decodeURIComponent(location.hash.slice(5));
+      history.replaceState(null,"",location.pathname+location.search);
+      if(text.trim()){openEditor(null);$("#edBody").value=text;$("#cover").classList.add("hidden")}
+    }catch(e){}
+  }
+}
+
+/* ---------- バックアップ ---------- */
+$("#miExport").onclick=()=>{
+  const data={app:"scientia",version:2,exported:new Date().toISOString(),notes,tombstones:tombs()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  const d=new Date(),z=v=>String(v).padStart(2,"0");
+  a.download=`scientia_${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}.json`;
+  a.click();URL.revokeObjectURL(a.href);
+  closeSheets();toast("蔵書を書き出しました");
+};
+$("#miImportJson").onclick=()=>$("#fileJson").click();
+$("#fileJson").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const data=JSON.parse(await f.text());
+    const arr=Array.isArray(data)?data:data.notes;
+    if(!Array.isArray(arr))throw 0;
+    let added=0;
+    for(const n of arr){
+      if(!n||typeof n.body!=="string")continue;
+      if(notes.some(x=>x.id===n.id))continue;
+      const note={id:n.id||uid(),title:String(n.title||"無題"),body:n.body,
+        created:n.created||Date.now(),updated:n.updated||Date.now()};
+      notes.push(note);await dbPut(note);added++;
+    }
+    toast(`${added}章を復元・統合しました`);
+    updateCoverCount();buildBook();scheduleSync();
+  }catch(err){toast("読み込めないファイルです")}
+  e.target.value="";closeSheets();
+};
+
+/* ---------- 検索 ---------- */
+$("#srchInput").oninput=()=>{
+  const q=$("#srchInput").value.trim().toLowerCase();
+  const box=$("#srchResults");
+  if(!q){box.innerHTML="";return}
+  const hits=notes.filter(n=>(n.title+"\n"+n.body).toLowerCase().includes(q)).slice(0,30);
+  if(!hits.length){box.innerHTML=`<div class="toc-empty">見つかりませんでした</div>`;return}
+  box.innerHTML=hits.map(n=>{
+    const i=(n.body.toLowerCase()).indexOf(q);
+    const snip=i>=0?n.body.slice(Math.max(0,i-30),i+60):n.body.slice(0,80);
+    const hl=esc(snip).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"ig"),m=>`<mark>${m}</mark>`);
+    return`<button class="srch-hit" data-go="${n.id}"><div class="sh-t">${esc(n.title)}</div><div class="sh-b">${hl}</div></button>`;
+  }).join("");
+};
+$("#srchResults").onclick=e=>{
+  const b=e.target.closest("[data-go]");if(!b)return;
+  closeSheets();
+  const p=chapterPages[b.dataset.go];if(p!==undefined)goToPage(p);
+};
+
+/* ---------- メニュー残り ---------- */
+$("#miToc").onclick=()=>{closeSheets();goToPage(0)};
+$("#miCover").onclick=()=>{closeSheets();$("#cover").classList.remove("hidden")};
+$("#miTheme").onclick=()=>{
+  const cur=document.body.dataset.theme;
+  document.body.dataset.theme=cur==="night"?"vellum":"night";
+  localStorage.setItem("scientia-theme",document.body.dataset.theme);
+  closeSheets();
+  toast(document.body.dataset.theme==="night"?"夜の書斎に変えました":"羊皮紙に変えました");
+};
+
+/* ---------- クラウド同期(GAS) ---------- */
+const cldCfg=()=>({url:localStorage.getItem("scientia-gas-url")||"",
+                   key:localStorage.getItem("scientia-gas-key")||""});
+const tombs=()=>{try{return JSON.parse(localStorage.getItem("scientia-tombs")||"[]")}catch(e){return[]}};
+const setTombs=a=>localStorage.setItem("scientia-tombs",JSON.stringify(a));
+function addTomb(id){const t=tombs().filter(x=>x.id!==id);t.push({id,ts:Date.now()});setTombs(t)}
+
+async function gasCall(payload){
+  const cfg=cldCfg();
+  const res=await fetch(cfg.url,{method:"POST",redirect:"follow",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},  // preflight回避
+    body:JSON.stringify({key:cfg.key,...payload})});
+  if(!res.ok)throw new Error("HTTP "+res.status);
+  const j=await res.json();
+  if(!j.ok)throw new Error(j.error||"server error");
+  return j;
+}
+function syncStatusText(){
+  const el=$("#syncStatus");if(!el)return;
+  if(!cldCfg().url){el.textContent="未設定 — まず下の「同期の設定」から";return}
+  const t=localStorage.getItem("scientia-last-sync");
+  el.textContent=t?`前回の同期: ${new Date(+t).toLocaleString("ja-JP")}`:"設定済み — タップして同期";
+}
+let syncing=false;
+async function cloudSync(silent){
+  if(syncing)return;
+  if(!cldCfg().url){if(!silent){closeSheets();openSheet("#cloudSheet")}return}
+  syncing=true;$("#miSync").classList.add("busy");
+  try{
+    /* 1) 取得 */
+    const r=await gasCall({action:"pull"});
+    const sv=r.data||{};
+    const svNotes=Array.isArray(sv.notes)?sv.notes:[];
+    const svTombs=Array.isArray(sv.tombstones)?sv.tombstones:[];
+    /* 2) マージ(idごとに updated が新しい方を採用) */
+    const map=new Map(notes.map(n=>[n.id,n]));
+    for(const s of svNotes){
+      if(!s||!s.id||typeof s.body!=="string")continue;
+      const l=map.get(s.id);
+      if(!l||(s.updated||0)>(l.updated||0))map.set(s.id,
+        {id:s.id,title:String(s.title||"無題"),body:s.body,
+         created:s.created||Date.now(),updated:s.updated||Date.now()});
+    }
+    /* 3) 削除の同期(墓標: 削除時刻がメモの更新時刻以降なら消す) */
+    const allTombs=[...tombs()];
+    for(const t of svTombs){if(t&&t.id&&!allTombs.some(x=>x.id===t.id&&x.ts>=t.ts))allTombs.push(t)}
+    for(const t of allTombs){
+      const n=map.get(t.id);
+      if(n&&t.ts>=(n.updated||0))map.delete(t.id);
+    }
+    /* 4) 90日より古い墓標は掃除 */
+    const keepT=allTombs.filter(t=>Date.now()-t.ts<90*86400e3);
+    setTombs(keepT);
+    /* 5) ローカルDBへ反映 */
+    const merged=[...map.values()];
+    const mergedIds=new Set(merged.map(n=>n.id));
+    for(const old of notes){if(!mergedIds.has(old.id))await dbDel(old.id)}
+    for(const n of merged)await dbPut(n);
+    notes=merged;
+    /* 6) サーバーへ反映 */
+    await gasCall({action:"push",data:{notes,tombstones:keepT}});
+    localStorage.setItem("scientia-last-sync",String(Date.now()));
+    syncStatusText();updateCoverCount();buildBook();
+    if(!silent)toast(`同期完了 — 全 ${notes.length} 章`);
+  }catch(err){
+    if(!silent)toast("同期できませんでした: "+(err.message||"通信エラー"));
+  }finally{
+    syncing=false;$("#miSync").classList.remove("busy");
+  }
+}
+let syncTm;
+function scheduleSync(){ if(cldCfg().url){clearTimeout(syncTm);syncTm=setTimeout(()=>cloudSync(true),2500)} }
+
+$("#miSync").onclick=()=>cloudSync(false);
+$("#miCloudCfg").onclick=()=>{
+  $("#cldUrl").value=cldCfg().url;$("#cldKey").value=cldCfg().key;
+  closeSheets();openSheet("#cloudSheet");
+};
+$("#cldSave").onclick=async()=>{
+  const url=$("#cldUrl").value.trim(),key=$("#cldKey").value.trim();
+  if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){toast("GASのURL(script.google.com)を入れてください");return}
+  localStorage.setItem("scientia-gas-url",url);
+  localStorage.setItem("scientia-gas-key",key);
+  closeSheets();syncStatusText();
+  toast("接続を確認しています…");
+  await cloudSync(false);
+};
+$("#cldOff").onclick=()=>{
+  localStorage.removeItem("scientia-gas-url");
+  localStorage.removeItem("scientia-gas-key");
+  closeSheets();syncStatusText();toast("同期を解除しました(蔵書は端末に残ります)");
+};
+
+/* ---------- 初回ガイド章 ---------- */
+const GUIDE=`この本「Scientia(スキエンティア)」へようこそ。Scientiaはラテン語で「知識」。あなたのメモが、章となり、目次を持つ一冊の本になります。
+
+## 章を増やす方法
+
+1. **この場で書く** — 右上の「＋」から。1行目を「# 題名」にすると自動で題名になります
+2. **ファイル取り込み** — メニュー →「ファイルを取り込む」。Obsidianの .md やテキストファイルを複数まとめて綴じられます
+3. **クリップボード取り込み** — NotionやSafariで文章をコピー → メニュー →「クリップボードから取り込む」
+
+## iPhoneの共有シートから送る
+
+「ショートカット」アプリで一度だけ設定すれば、どのアプリからでも共有→Scientiaに送れます。
+
+1. ショートカットアプリで新規作成し、名前を「Scientiaへ送る」に
+2. 「クリップボードにコピー」アクションを追加(入力: ショートカットの入力)
+3. 「URLを開く」アクションを追加し、このアプリのURLを指定
+4. 設定(ⓘ)で「共有シートに表示」をオン
+5. 以後、共有 → Scientiaへ送る → アプリ内メニューの「クリップボードから取り込む」
+
+## 本の読み方
+
+- ページは **左右スワイプ**、画面端タップ、矢印キーでめくれます
+- 巻頭の **INDEX(目次)** から各章へ飛べます
+- 章題の下の「✒ 編集」でいつでも書き直せます
+- iPadや横向きでは **見開き2ページ** になります
+
+## 大切なこと
+
+> 蔵書はこの端末のブラウザ内(IndexedDB)に保存されます。ときどきメニューの「蔵書を書き出す」でバックアップを残してください。
+
+Safariの共有メニューから **「ホーム画面に追加」** すると、全画面の本としてお使いいただけます。
+
+---
+
+Scientia potentia est — 知識は力なり。`;
+
+/* ---------- 起動 ---------- */
+(async function init(){
+  const th=localStorage.getItem("scientia-theme");
+  if(th)document.body.dataset.theme=th;
+  await openDB();
+  notes=await dbAll();
+  if(!notes.length&&!localStorage.getItem("scientia-guided")){
+    const now=Date.now();
+    const g={id:uid(),title:"はじめに — この本の使い方",body:GUIDE,created:now,updated:now};
+    notes.push(g);await dbPut(g);
+    localStorage.setItem("scientia-guided","1");
+  }
+  updateCoverCount();
+  buildBook();
+  checkHashImport();
+  syncStatusText();
+  if(cldCfg().url)cloudSync(true);
+})();
+</script>
+</body>
+</html>
