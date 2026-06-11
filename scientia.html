@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#211b13">
+<title>Scientia — あなたのメモを、一冊の本に</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Shippori+Mincho+B1:wght@400;500;700&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SCIENTIA — design tokens
+   palette: 羊皮紙 / 鉄墨 / ポンペイ朱 / 古青銅
+   ============================================================ */
+:root{
+  --vellum:#efe6d3;        /* 紙面 */
+  --vellum-deep:#e4d7bd;   /* 紙の影 */
+  --ink:#2b2218;           /* 本文の鉄墨 */
+  --ink-soft:#5c503e;      /* 補助文字 */
+  --rubric:#9e2f24;        /* ポンペイ朱(章番号・朱書き) */
+  --bronze:#8a7146;        /* 罫線・装飾 */
+  --bronze-line:#8a714655;
+  --cover:#211b13;         /* 装丁(表紙・背景) */
+  --cover-2:#2e2519;
+  --gold:#c9a25e;
+  --page-w: 0px; --gap: 56px;
+  --serif-jp:'Shippori Mincho B1','Zen Old Mincho','Hiragino Mincho ProN',serif;
+  --roman:'Cinzel',serif;
+  --shadow-page: 0 18px 50px rgba(0,0,0,.45);
+}
+[data-theme="night"]{
+  --vellum:#262019; --vellum-deep:#1d1812;
+  --ink:#d8cbb2; --ink-soft:#9a8a6f;
+  --rubric:#d06a4f; --bronze:#9c8458; --bronze-line:#9c845844;
+  --cover:#100d09; --cover-2:#191410;
+  --shadow-page: 0 18px 50px rgba(0,0,0,.7);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{
+  font-family:var(--serif-jp); color:var(--ink);
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--cover-2), var(--cover) 70%);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  position:fixed; inset:0; overflow:hidden;
+  user-select:none; -webkit-user-select:none;
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,textarea{font-family:inherit}
+::selection{background:var(--rubric);color:#fff}
+
+/* ============ 表紙(カバー) ============ */
+#cover{
+  position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:0; text-align:center;
+  background:
+    radial-gradient(90% 70% at 50% 30%, var(--cover-2), var(--cover) 75%);
+  color:var(--gold); transition:opacity .8s ease, visibility .8s;
+}
+#cover.hidden{opacity:0; visibility:hidden}
+.cover-frame{
+  border:1px solid #c9a25e55; outline:1px solid #c9a25e22; outline-offset:6px;
+  padding:clamp(36px,8vw,72px) clamp(28px,9vw,90px); position:relative;
+}
+.cover-frame::before,.cover-frame::after{
+  content:"❦"; position:absolute; left:50%; transform:translateX(-50%);
+  color:#c9a25e88; font-size:15px; background:var(--cover); padding:0 12px;
+}
+.cover-frame::before{top:-10px}
+.cover-frame::after{bottom:-10px}
+.cover-eyebrow{font-family:var(--roman); font-size:11px; letter-spacing:.55em; text-indent:.55em; color:#c9a25e99; margin-bottom:22px}
+.cover-title{
+  font-family:var(--roman); font-weight:700;
+  font-size:clamp(40px,11vw,84px); letter-spacing:.18em; text-indent:.18em;
+  line-height:1; color:var(--gold);
+  text-shadow:0 1px 0 #00000088, 0 0 36px #c9a25e30;
+}
+.cover-rule{width:120px;height:1px;background:linear-gradient(90deg,transparent,#c9a25e99,transparent);margin:26px auto 18px}
+.cover-sub{font-size:13px; letter-spacing:.32em; text-indent:.32em; color:#cbb792}
+.cover-open{
+  margin-top:46px; font-family:var(--roman); font-size:13px; letter-spacing:.4em; text-indent:.4em;
+  color:var(--cover); background:linear-gradient(180deg,#d9b876,#b08c4e);
+  padding:15px 38px; border-radius:2px; box-shadow:0 6px 24px #00000066, inset 0 1px 0 #ffffff66;
+  transition:transform .2s, box-shadow .2s;
+}
+.cover-open:active{transform:translateY(2px)}
+.cover-count{margin-top:18px;font-size:11px;letter-spacing:.2em;color:#9d8a66}
+
+/* ============ アプリ骨格 ============ */
+#app{position:absolute; inset:0; display:flex; flex-direction:column;
+  padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);}
+header.bar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; color:var(--gold);
+}
+.bar .wordmark{font-family:var(--roman); font-weight:600; font-size:15px; letter-spacing:.34em; text-indent:.34em; color:var(--gold)}
+.bar-group{display:flex; gap:4px}
+.icon-btn{
+  width:40px;height:40px;display:grid;place-items:center;border-radius:8px;
+  color:#cbb792; font-size:18px; transition:background .2s;
+}
+.icon-btn:active{background:#ffffff14}
+.icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* ============ 書見台(本の領域) ============ */
+#stage{flex:1; position:relative; display:flex; align-items:stretch; justify-content:center; padding:6px 14px 4px; min-height:0}
+#book{
+  position:relative; width:100%; max-width:1080px; height:100%;
+  background:
+    linear-gradient(105deg, rgba(0,0,0,.12), rgba(0,0,0,0) 8%),
+    radial-gradient(140% 120% at 50% -20%, #fff8ea08, transparent),
+    linear-gradient(180deg, var(--vellum), var(--vellum-deep));
+  border-radius:4px 10px 10px 4px;
+  box-shadow:var(--shadow-page),
+    inset 0 0 60px rgba(120,90,40,.12),
+    inset 0 1px 0 #ffffff33;
+}
+/* 重なった小口(ページの束) */
+#book::after{
+  content:""; position:absolute; top:5px; bottom:5px; right:-7px; width:7px;
+  background:repeating-linear-gradient(90deg, var(--vellum-deep) 0 1px, #b8a27c 1px 2px);
+  border-radius:0 4px 4px 0; box-shadow:2px 0 6px rgba(0,0,0,.35);
+}
+#book.spread::before{ /* 見開き時の中央のノド */
+  content:""; position:absolute; top:0; bottom:0; left:50%; width:70px; transform:translateX(-50%);
+  background:linear-gradient(90deg, transparent, rgba(60,40,15,.16) 48%, rgba(60,40,15,.22) 50%, rgba(60,40,15,.16) 52%, transparent);
+  pointer-events:none; z-index:3;
+}
+#viewport{position:absolute; inset:0; overflow:hidden; border-radius:inherit}
+#flow{
+  position:relative; height:100%;
+  column-fill:auto; column-gap:var(--gap); column-width:var(--page-w);
+  padding:0; transition:transform .45s cubic-bezier(.22,.8,.3,1);
+  will-change:transform;
+  user-select:text; -webkit-user-select:text;
+}
+#flow.noanim{transition:none}
+
+/* ページ余白は段組み内の内側パディングで表現 */
+.pagepad{padding:0 8px}
+
+/* ---- タイポグラフィ(本文) ---- */
+#flow{font-size:16px; line-height:2.05; color:var(--ink); letter-spacing:.02em}
+#flow h1.ch-title{
+  font-size:24px; font-weight:700; line-height:1.6; letter-spacing:.06em;
+  margin:8px 0 14px; break-after:avoid;
+}
+.ch-head{break-inside:avoid; padding-top:26px; position:relative}
+.ch-no{
+  font-family:var(--roman); font-weight:600; color:var(--rubric);
+  font-size:13px; letter-spacing:.42em; text-indent:.42em;
+  display:flex; align-items:center; gap:12px; margin-bottom:6px;
+}
+.ch-no::after{content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--bronze-line),transparent)}
+.ch-meta{font-size:11px; color:var(--ink-soft); letter-spacing:.12em; margin-bottom:18px; display:flex; align-items:center; gap:10px}
+.ch-edit{
+  font-size:11px; color:var(--bronze); border:1px solid var(--bronze-line);
+  padding:3px 12px; border-radius:99px; letter-spacing:.18em;
+}
+.ch-edit:active{background:var(--bronze-line)}
+.ch-end{display:flex;justify-content:center;color:var(--bronze);font-size:14px;padding:26px 0 40px;letter-spacing:1em;text-indent:1em}
+
+#flow h2{font-size:19px;margin:26px 0 10px;font-weight:700;letter-spacing:.05em;break-after:avoid;
+  border-left:3px solid var(--rubric); padding-left:12px; line-height:1.6}
+#flow h3{font-size:17px;margin:22px 0 8px;font-weight:700;break-after:avoid;line-height:1.6}
+#flow p{margin:0 0 1.1em; text-align:justify}
+#flow ul,#flow ol{margin:0 0 1.1em 1.5em}
+#flow li{margin-bottom:.3em}
+#flow blockquote{
+  margin:1.2em 0; padding:.2em 1.2em; color:var(--ink-soft);
+  border-left:2px solid var(--bronze); font-style:normal;
+}
+#flow code{
+  font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:.86em;
+  background:rgba(120,90,40,.13); padding:.15em .45em; border-radius:4px;
+}
+#flow pre{
+  background:rgba(60,45,20,.1); border:1px solid var(--bronze-line); border-radius:6px;
+  padding:14px; margin:0 0 1.2em; overflow-x:auto; line-height:1.7; break-inside:avoid;
+}
+#flow pre code{background:none;padding:0}
+#flow a{color:var(--rubric); text-decoration:underline; text-underline-offset:3px}
+#flow hr{border:none; text-align:center; margin:1.6em 0; height:auto}
+#flow hr::after{content:"❦"; color:var(--bronze); font-size:14px}
+#flow img{max-width:100%; border:1px solid var(--bronze-line)}
+#flow strong{font-weight:700}
+#flow em{font-style:italic}
+
+/* ---- 目次(INDEX) ---- */
+.toc-title{
+  font-family:var(--roman); font-weight:600; font-size:20px;
+  letter-spacing:.5em; text-indent:.5em; text-align:center; color:var(--ink);
+  margin:30px 0 4px;
+}
+.toc-sub{text-align:center; font-size:11px; color:var(--ink-soft); letter-spacing:.3em; text-indent:.3em; margin-bottom:26px}
+.toc-item{display:flex; align-items:stretch; border-bottom:1px dashed var(--bronze-line); break-inside:avoid}
+.toc-go{
+  flex:1; min-width:0; display:flex; align-items:baseline; gap:10px; text-align:left;
+  padding:11px 2px; font-size:15.5px; line-height:1.6; color:var(--ink);
+}
+.toc-go:active{background:rgba(158,47,36,.07)}
+.toc-edit{flex:none; width:38px; display:grid; place-items:center; color:var(--bronze); font-size:14px}
+.toc-edit:active{color:var(--rubric); background:rgba(158,47,36,.07)}
+.toc-num{font-family:var(--roman); font-weight:600; color:var(--rubric); font-size:13px; min-width:2.4em}
+.toc-name{flex:0 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.toc-dots{flex:1; border-bottom:1px dotted var(--bronze); transform:translateY(-4px); min-width:14px}
+.toc-page{font-family:var(--roman); font-size:12px; color:var(--ink-soft)}
+.toc-empty{padding:30px 6px; color:var(--ink-soft); font-size:14px; line-height:2.2; text-align:center}
+
+/* ---- ページめくり操作 ---- */
+footer.pager{
+  display:flex; align-items:center; justify-content:center; gap:18px;
+  padding:8px 0 10px; color:#b9a47c;
+}
+.pager .pg-btn{
+  font-size:17px; width:44px; height:36px; display:grid; place-items:center;
+  color:#cbb792; border:1px solid #c9a25e33; border-radius:99px;
+}
+.pager .pg-btn:active{background:#ffffff12}
+.pager .pg-btn:disabled{opacity:.3}
+#pageLabel{font-family:var(--roman); font-size:12px; letter-spacing:.28em; min-width:120px; text-align:center}
+
+/* ============ 共通オーバーレイ・シート ============ */
+.veil{position:absolute; inset:0; background:rgba(15,11,6,.6); z-index:70;
+  opacity:0; visibility:hidden; transition:.25s; backdrop-filter:blur(2px)}
+.veil.show{opacity:1; visibility:visible}
+.sheet{
+  position:absolute; left:50%; bottom:0; transform:translate(-50%,8%) ;
+  width:min(620px,100%); max-height:88%; overflow:auto; z-index:71;
+  background:linear-gradient(180deg,var(--vellum),var(--vellum-deep));
+  color:var(--ink); border-radius:14px 14px 0 0; box-shadow:0 -10px 50px rgba(0,0,0,.5);
+  padding:20px 20px calc(22px + env(safe-area-inset-bottom));
+  opacity:0; visibility:hidden; transition:.3s cubic-bezier(.22,.8,.3,1);
+}
+.sheet.show{opacity:1; visibility:visible; transform:translate(-50%,0)}
+.sheet h2{font-size:16px; letter-spacing:.24em; text-indent:.24em; text-align:center; margin-bottom:4px; font-weight:700}
+.sheet .sheet-cap{text-align:center; font-size:11px; color:var(--ink-soft); letter-spacing:.14em; margin-bottom:16px}
+.menu-item{
+  display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+  padding:14px 8px; font-size:15px; border-bottom:1px solid var(--bronze-line);
+}
+.menu-item:active{background:rgba(158,47,36,.07)}
+.menu-item .mi-ico{width:26px; text-align:center; color:var(--rubric); font-size:16px; flex:none}
+.menu-item .mi-sub{display:block; font-size:11px; color:var(--ink-soft); margin-top:2px; letter-spacing:.05em}
+.menu-item.danger .mi-ico{color:#8a3324}
+
+/* ============ 執筆(エディタ) ============ */
+#editor{
+  position:absolute; inset:0; z-index:80; display:flex; flex-direction:column;
+  background:linear-gradient(180deg,var(--vellum),var(--vellum-deep));
+  color:var(--ink); transform:translateY(102%); transition:transform .35s cubic-bezier(.22,.8,.3,1);
+  padding-top:env(safe-area-inset-top);
+}
+#editor.show{transform:translateY(0)}
+.ed-bar{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--bronze-line)}
+.ed-bar .ed-act{font-size:14px; letter-spacing:.14em; padding:8px 14px; color:var(--ink-soft)}
+.ed-bar .ed-save{color:#fff; background:var(--rubric); border-radius:99px; padding:8px 22px; letter-spacing:.2em; box-shadow:0 3px 10px rgba(158,47,36,.35)}
+.ed-bar .ed-save:active{transform:translateY(1px)}
+#edTitle{
+  border:none; background:transparent; outline:none; width:100%;
+  font-size:21px; font-weight:700; padding:18px 20px 6px; color:var(--ink);
+  font-family:var(--serif-jp); letter-spacing:.04em;
+}
+#edTitle::placeholder,#edBody::placeholder{color:var(--ink-soft); opacity:.55}
+.ed-rule{height:1px; margin:4px 20px 0; background:linear-gradient(90deg,var(--rubric) 0 56px, var(--bronze-line) 56px)}
+#edBody{
+  flex:1; border:none; background:transparent; outline:none; resize:none;
+  padding:14px 20px calc(20px + env(safe-area-inset-bottom)); font-size:16px; line-height:2;
+  color:var(--ink); font-family:var(--serif-jp);
+}
+.ed-hint{font-size:10.5px; color:var(--ink-soft); padding:0 20px 8px; letter-spacing:.06em}
+
+/* ============ 検索 ============ */
+#searchSheet .srch-box{
+  display:flex; gap:8px; align-items:center; border:1px solid var(--bronze);
+  border-radius:99px; padding:10px 16px; margin-bottom:14px; background:rgba(255,255,255,.25);
+}
+[data-theme="night"] #searchSheet .srch-box{background:rgba(0,0,0,.2)}
+#srchInput{flex:1; border:none; background:none; outline:none; font-size:16px; color:var(--ink)}
+.srch-hit{display:block; width:100%; text-align:left; padding:12px 6px; border-bottom:1px solid var(--bronze-line)}
+.srch-hit .sh-t{font-weight:700; font-size:15px}
+.srch-hit .sh-b{font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.7;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.srch-hit mark{background:rgba(158,47,36,.18); color:var(--rubric); font-weight:700}
+
+/* ============ クラウド同期 ============ */
+.cld-label{display:block;font-size:11px;letter-spacing:.18em;color:var(--ink-soft);margin:14px 4px 6px}
+.cld-input{
+  width:100%;border:1px solid var(--bronze);border-radius:8px;background:rgba(255,255,255,.3);
+  padding:12px 14px;font-size:14px;color:var(--ink);outline:none;
+}
+[data-theme="night"] .cld-input{background:rgba(0,0,0,.25)}
+.cld-input:focus{border-color:var(--rubric)}
+.cld-note{font-size:11.5px;line-height:1.9;color:var(--ink-soft);margin:14px 4px;letter-spacing:.03em}
+.cld-row{display:flex;gap:10px;margin-top:8px}
+.cld-btn{flex:1;padding:13px;border-radius:99px;font-size:13.5px;letter-spacing:.14em}
+.cld-btn.solid{color:#fff;background:var(--rubric);box-shadow:0 3px 10px rgba(158,47,36,.35)}
+.cld-btn.ghost{color:var(--ink-soft);border:1px solid var(--bronze-line)}
+.cld-btn:active{transform:translateY(1px)}
+#miSync.busy .mi-ico{animation:spin 1.2s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============ 気づきメモ(注釈) ============ */
+.ch-anno{
+  font-size:11px; color:var(--bronze); border:1px solid var(--bronze-line);
+  padding:3px 12px; border-radius:99px; letter-spacing:.18em;
+}
+.ch-anno:active{background:var(--bronze-line)}
+.anno-ctx{display:flex; align-items:center; gap:10px; margin:2px 0 10px; font-size:13px; color:var(--ink-soft)}
+.anno-ctx .ac-name{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink); font-weight:700}
+.anno-ctx .ac-all{flex:none; font-size:12px; color:var(--rubric); letter-spacing:.1em; padding:4px 8px}
+.anno-add{
+  width:100%; margin:0 0 10px; padding:12px; border:1px dashed var(--bronze);
+  border-radius:10px; color:var(--rubric); font-size:13.5px; letter-spacing:.14em;
+}
+.anno-add:active{background:rgba(158,47,36,.07)}
+.anno-item{padding:12px 4px; border-bottom:1px solid var(--bronze-line)}
+.anno-meta{display:flex; align-items:center; gap:10px; font-size:11px; color:var(--ink-soft); letter-spacing:.06em}
+.anno-src{
+  color:var(--rubric); text-decoration:underline; text-underline-offset:3px;
+  max-width:50%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; text-align:left;
+}
+.anno-date{font-family:var(--roman); flex:none}
+.anno-edit{margin-left:auto; color:var(--bronze); font-size:13px; padding:2px 8px; flex:none}
+.anno-edit:active{color:var(--rubric)}
+.anno-body{margin-top:6px; font-size:14px; line-height:1.9; white-space:pre-wrap; user-select:text; -webkit-user-select:text}
+.anno-empty{padding:26px 6px; color:var(--ink-soft); font-size:13.5px; line-height:2; text-align:center}
+.anno-ta{
+  width:100%; min-height:150px; border:1px solid var(--bronze); border-radius:10px;
+  background:rgba(255,255,255,.3); padding:12px 14px; font-size:15px; line-height:1.9;
+  color:var(--ink); outline:none; resize:vertical; font-family:var(--serif-jp);
+}
+[data-theme="night"] .anno-ta{background:rgba(0,0,0,.25)}
+.anno-ta:focus{border-color:var(--rubric)}
+
+/* ============ トースト ============ */
+#toast{
+  position:absolute; left:50%; bottom:calc(86px + env(safe-area-inset-bottom)); transform:translate(-50%,16px);
+  background:var(--ink); color:var(--vellum); font-size:13px; letter-spacing:.12em;
+  padding:11px 24px; border-radius:99px; z-index:99; opacity:0; visibility:hidden;
+  transition:.3s; box-shadow:0 8px 28px rgba(0,0,0,.4); max-width:86%; text-align:center;
+}
+[data-theme="night"] #toast{background:#e8dcc2; color:#211b13}
+#toast.show{opacity:1; visibility:visible; transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important; animation:none!important}
+}
+@media (max-width:480px){
+  :root{--gap:40px}
+  #flow{font-size:15.5px}
+  #stage{padding:2px 10px 2px}
+}
+</style>
+</head>
+<body data-theme="vellum">
+
+<!-- ======== 表紙 ======== -->
+<div id="cover">
+  <div class="cover-frame">
+    <div class="cover-eyebrow">EX LIBRIS MEIS</div>
+    <div class="cover-title">SCIENTIA</div>
+    <div class="cover-rule"></div>
+    <div class="cover-sub">知 識 の 書</div>
+    <button class="cover-open" id="openBook">A P E R I R E ・ 開 く</button>
+    <div class="cover-count" id="coverCount"></div>
+  </div>
+</div>
+
+<!-- ======== 本体 ======== -->
+<div id="app">
+  <header class="bar">
+    <button class="icon-btn" id="btnMenu" aria-label="メニュー">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="wordmark">SCIENTIA</div>
+    <div class="bar-group">
+      <button class="icon-btn" id="btnSearch" aria-label="検索">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+      </button>
+      <button class="icon-btn" id="btnNew" aria-label="新しい章を書く">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <div id="book">
+      <div id="viewport"><div id="flow"></div></div>
+    </div>
+  </div>
+
+  <footer class="pager">
+    <button class="pg-btn" id="pgPrev" aria-label="前のページ">‹</button>
+    <div id="pageLabel">—</div>
+    <button class="pg-btn" id="pgNext" aria-label="次のページ">›</button>
+  </footer>
+</div>
+
+<!-- ======== メニュー ======== -->
+<div class="veil" id="veil"></div>
+<div class="sheet" id="menuSheet">
+  <h2>書 庫</h2>
+  <div class="sheet-cap">BIBLIOTHECA</div>
+  <button class="menu-item" id="miToc"><span class="mi-ico">⌖</span><span>目次へ戻る<span class="mi-sub">INDEX — 巻頭の目次ページを開く</span></span></button>
+  <button class="menu-item" id="miNew"><span class="mi-ico">✒</span><span>新しい章を書く<span class="mi-sub">この場で書いた文章が新しい章になります</span></span></button>
+  <button class="menu-item" id="miFiles"><span class="mi-ico">⇲</span><span>ファイルを取り込む<span class="mi-sub">Obsidianの .md / テキスト .txt(複数可)</span></span></button>
+  <button class="menu-item" id="miClip"><span class="mi-ico">⎘</span><span>クリップボードから取り込む<span class="mi-sub">iPhoneの共有→ショートカット経由はこちら</span></span></button>
+  <button class="menu-item" id="miAnnos"><span class="mi-ico">✎</span><span>気づきメモ<span class="mi-sub">ADNOTATIONES — 読み返しの気づき一覧</span></span></button>
+  <button class="menu-item" id="miTheme"><span class="mi-ico">☾</span><span>装丁を変える<span class="mi-sub">羊皮紙 / 夜の書斎</span></span></button>
+  <button class="menu-item" id="miExport"><span class="mi-ico">⛃</span><span>蔵書を書き出す(バックアップ)<span class="mi-sub">全章をJSONファイルとして保存</span></span></button>
+  <button class="menu-item" id="miImportJson"><span class="mi-ico">⛏</span><span>蔵書を読み込む(復元)<span class="mi-sub">書き出したJSONから復元・統合</span></span></button>
+  <button class="menu-item" id="miSync"><span class="mi-ico">☁</span><span>クラウドと同期<span class="mi-sub" id="syncStatus">未設定 — まず下の「同期の設定」から</span></span></button>
+  <button class="menu-item" id="miCloudCfg"><span class="mi-ico">⚙</span><span>クラウド同期の設定<span class="mi-sub">Googleドライブ(GAS)と接続</span></span></button>
+  <button class="menu-item" id="miCover"><span class="mi-ico">▣</span><span>表紙を閉じる<span class="mi-sub">表紙画面に戻ります</span></span></button>
+  <input type="file" id="fileMd" accept=".md,.txt,.markdown,text/plain,text/markdown" multiple hidden>
+  <input type="file" id="fileJson" accept=".json,application/json" hidden>
+</div>
+
+<!-- ======== クラウド同期設定 ======== -->
+<div class="sheet" id="cloudSheet">
+  <h2>同 期 の 設 定</h2>
+  <div class="sheet-cap">NUBES — Googleドライブと繋ぐ</div>
+  <label class="cld-label">GASウェブアプリのURL</label>
+  <input class="cld-input" id="cldUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" autocorrect="off">
+  <label class="cld-label">合言葉(GAS側のKEYと同じもの)</label>
+  <input class="cld-input" id="cldKey" type="text" placeholder="例: mea-scientia-2026" autocapitalize="off" autocorrect="off">
+  <div class="cld-note">付属の <b>scientia-gas.gs</b> をGoogle Apps Scriptに貼り付けてウェブアプリとして公開し、そのURLと合言葉をここに入力してください。データはあなたのGoogleドライブ内の「scientia-library.json」に保存されます。</div>
+  <div class="cld-row">
+    <button class="cld-btn ghost" id="cldOff">同期を解除</button>
+    <button class="cld-btn solid" id="cldSave">保存して接続を確認</button>
+  </div>
+</div>
+
+<!-- ======== 検索 ======== -->
+<div class="sheet" id="searchSheet">
+  <h2>検 索</h2>
+  <div class="sheet-cap">QUAERERE</div>
+  <div class="srch-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+    <input id="srchInput" type="search" placeholder="題名・本文から探す" enterkeyhint="search">
+  </div>
+  <div id="srchResults"></div>
+</div>
+
+<!-- ======== 気づきメモ(一覧) ======== -->
+<div class="sheet" id="annoSheet">
+  <h2>気 づ き メ モ</h2>
+  <div class="sheet-cap">ADNOTATIONES — 読み返しの気づき</div>
+  <div id="annoCtx"></div>
+  <div id="annoList"></div>
+</div>
+
+<!-- ======== 気づきメモ(執筆) ======== -->
+<div class="sheet" id="annoEditSheet">
+  <h2>気 づ き を 書 く</h2>
+  <div class="sheet-cap" id="annoEditCap">—</div>
+  <textarea class="anno-ta" id="annoBody" placeholder="読み返して気づいたこと・考えたことを書き留めます"></textarea>
+  <div class="cld-row">
+    <button class="cld-btn ghost" id="annoDelete">削除</button>
+    <button class="cld-btn ghost" id="annoCancel">一覧へ戻る</button>
+    <button class="cld-btn solid" id="annoSave">書 き 留 め る</button>
+  </div>
+</div>
+
+<!-- ======== エディタ ======== -->
+<div id="editor">
+  <div class="ed-bar">
+    <button class="ed-act" id="edCancel">閉じる</button>
+    <button class="ed-act" id="edDelete" style="color:#8a3324">削除</button>
+    <button class="ed-save" id="edSave">綴 じ る</button>
+  </div>
+  <input id="edTitle" placeholder="章の題名(目次に載ります)">
+  <div class="ed-rule"></div>
+  <textarea id="edBody" placeholder="本文。Markdownが使えます — # 見出し、**太字**、- 箇条書き、> 引用 など"></textarea>
+  <div class="ed-hint">✒ 1行目が「# 見出し」の場合、題名が空ならそれを題名として採用します</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   SCIENTIA — logic
+   モジュール構成(上から依存順):
+     CFG        … 全設定値(マジックナンバーはここに集約)
+     util       … 汎用小道具($ / debounce / roman / uid …)
+     Store      … IndexedDB(トランザクション完了まで待って成功扱い)
+     Markdown   … 小型レンダラ(章本文 → HTML)
+     Book       … 組版・ページ送り(段組みをページに見立てる)
+     Sheets     … メニュー等の開閉・トースト
+     Editor     … 執筆・編集・削除
+     Importer   … ファイル / クリップボード / URLハッシュ取り込み
+     Backup     … JSON書き出し・復元
+     Search     … 全文検索
+     Cloud      … GAS同期(プロトコルは旧版と完全互換)
+     init       … 起動
+   データ互換性: DB名・ストア名・localStorageキー・バックアップJSON・
+   GAS通信仕様は旧版と同一。HTMLを差し替えても蔵書はそのまま読める。
+   ============================================================ */
+"use strict";
+
+/* ---------- CFG: 設定値 ---------- */
+const CFG = {
+  DB_NAME: "scientia-db",
+  DB_VERSION: 2,            // v2: 気づきメモ(annos)ストア追加
+  STORE: "notes",
+  STORE_ANNOS: "annos",
+  SPREAD_MIN_W: 760,        // この幅以上で見開き2ページ
+  EDGE_TAP: 0.13,           // 画面端タップでページ送りする領域(横幅比)
+  SWIPE_MIN_X: 56,          // スワイプ判定の最小横移動量(px)
+  SWIPE_RATIO: 1.4,         // 横移動が縦移動の何倍ならスワイプとみなすか
+  TITLE_MAX: 40,            // 題名を本文から自動生成するときの最大文字数
+  RESIZE_MS: 180,           // リサイズ再組版のデバウンス
+  SEARCH_MS: 120,           // 検索入力のデバウンス
+  SEARCH_MAX: 30,           // 検索結果の最大件数
+  SYNC_DELAY_MS: 2500,      // 保存後に自動同期するまでの猶予
+  SYNC_TIMEOUT_MS: 15000,   // GAS応答待ちの上限
+  TOMB_TTL_MS: 90 * 86400e3,// 削除の墓標を保持する期間(90日)
+  TOAST_MS: 2400,
+  LS: {                     // localStorage キー(旧版と同一・変更禁止)
+    THEME: "scientia-theme",
+    GAS_URL: "scientia-gas-url",
+    GAS_KEY: "scientia-gas-key",
+    TOMBS: "scientia-tombs",
+    ANNO_TOMBS: "scientia-anno-tombs",
+    LAST_SYNC: "scientia-last-sync",
+    GUIDED: "scientia-guided"
+  }
+};
+
+/* ---------- util ---------- */
+const $ = s => document.querySelector(s);
+
+function debounce(fn, ms){
+  let tm; return (...a) => { clearTimeout(tm); tm = setTimeout(() => fn(...a), ms); };
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function roman(n){
+  const t = [[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],
+    [50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+  let s = ""; for(const [v,r] of t){ while(n >= v){ s += r; n -= v; } } return s || "–";
+}
+function fmtDate(ts){ const d = new Date(ts); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; }
+
+/* ---------- Store: IndexedDB ---------- */
+/* 旧版は put/delete の onsuccess で完了扱いにしていたが、
+   トランザクション全体の完了(oncomplete)まで待たないと
+   タブを閉じた瞬間の書き込みが失われ得るため、ここで待つ。 */
+const Store = (() => {
+  let db = null;
+  function open(){
+    return new Promise((resolve, reject) => {
+      const rq = indexedDB.open(CFG.DB_NAME, CFG.DB_VERSION);
+      rq.onupgradeneeded = e => {
+        const d = e.target.result;
+        if(!d.objectStoreNames.contains(CFG.STORE)){
+          const st = d.createObjectStore(CFG.STORE, { keyPath: "id" });
+          st.createIndex("created", "created");
+        }
+        /* v2: 気づきメモ。既存DB(v1)からの昇格でも蔵書はそのまま残る */
+        if(!d.objectStoreNames.contains(CFG.STORE_ANNOS)){
+          d.createObjectStore(CFG.STORE_ANNOS, { keyPath: "id" });
+        }
+      };
+      rq.onsuccess = e => { db = e.target.result; resolve(); };
+      rq.onerror = () => reject(rq.error);
+    });
+  }
+  function run(store, mode, op){
+    return new Promise((resolve, reject) => {
+      const t = db.transaction(store, mode);
+      const rq = op(t.objectStore(store));
+      t.oncomplete = () => resolve(rq ? rq.result : undefined);
+      t.onerror = () => reject(t.error);
+      t.onabort = () => reject(t.error);
+    });
+  }
+  return {
+    open,
+    all:    store => run(store, "readonly",  st => st.getAll()),
+    put:    (store, obj) => run(store, "readwrite", st => st.put(obj)),
+    remove: (store, id)  => run(store, "readwrite", st => st.delete(id))
+  };
+})();
+
+/* ---------- Markdown ---------- */
+const Markdown = (() => {
+  function esc(s){
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  /* インライン記法。コード片(`…`)を先にトークン化して退避し、
+     コード内の ** や [] が太字・リンクとして誤変換されるのを防ぐ。 */
+  function inline(s){
+    const codes = [];
+    s = s.replace(/`([^`]+)`/g, (m, c) => { codes.push(c); return "\u0000" + (codes.length - 1) + "\u0000"; });
+    s = s
+      .replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, (m, alt, u) =>
+        /^https?:/i.test(u) ? `<img src="${u}" alt="${alt}" loading="lazy">` : alt)
+      .replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, (m, txt, u) =>
+        /^https?:/i.test(u) ? `<a href="${u}" target="_blank" rel="noopener">${txt}</a>` : txt)
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+      .replace(/~~([^~]+)~~/g, "<del>$1</del>");
+    return s.replace(/\u0000(\d+)\u0000/g, (m, i) => `<code>${codes[+i]}</code>`);
+  }
+  function render(src){
+    /* 入力全体を先にエスケープしてから構文解析する方式。
+       blockquote 判定が「&gt;」なのはそのため。 */
+    const lines = esc(src.replace(/\r\n?/g, "\n")).split("\n");
+    let html = "", i = 0, para = [], list = null, quote = [];
+    const flushP = () => { if(para.length){ html += "<p>" + inline(para.join("<br>")) + "</p>"; para = []; } };
+    const flushL = () => { if(list){ html += `<${list.t}>` + list.items.map(x => "<li>" + inline(x) + "</li>").join("") + `</${list.t}>`; list = null; } };
+    const flushQ = () => { if(quote.length){ html += "<blockquote><p>" + inline(quote.join("<br>")) + "</p></blockquote>"; quote = []; } };
+    const flushAll = () => { flushP(); flushL(); flushQ(); };
+    while(i < lines.length){
+      const l = lines[i];
+      if(/^```/.test(l)){
+        flushAll(); const code = []; i++;
+        while(i < lines.length && !/^```/.test(lines[i])){ code.push(lines[i]); i++; }
+        html += "<pre><code>" + code.join("\n") + "</code></pre>"; i++; continue;
+      }
+      let m;
+      if(m = l.match(/^(#{1,6})\s+(.*)/)){
+        flushAll();
+        /* h1 は章題専用なので、本文の # は h2 以降に割り当てる */
+        const lv = Math.min(m[1].length + 1, 4);
+        html += `<h${lv}>` + inline(m[2]) + `</h${lv}>`; i++; continue;
+      }
+      if(/^(\s*)([-*+]|\d+[.)])\s+/.test(l)){
+        flushP(); flushQ();
+        const t = /^\s*\d/.test(l) ? "ol" : "ul";
+        const item = l.replace(/^(\s*)([-*+]|\d+[.)])\s+/, "");
+        if(!list || list.t !== t){ flushL(); list = { t, items: [] }; }
+        list.items.push(item.replace(/^\[( |x)\]\s*/i, (mm, c) => c.toLowerCase() === "x" ? "☑ " : "☐ "));
+        i++; continue;
+      }
+      if(/^&gt;\s?/.test(l)){ flushP(); flushL(); quote.push(l.replace(/^&gt;\s?/, "")); i++; continue; }
+      if(/^(\*{3,}|-{3,}|_{3,})\s*$/.test(l)){ flushAll(); html += "<hr>"; i++; continue; }
+      if(/^\s*$/.test(l)){ flushAll(); i++; continue; }
+      flushL(); flushQ(); para.push(l); i++;
+    }
+    flushAll(); return html;
+  }
+  return { esc, render };
+})();
+
+/* ---------- 状態 ---------- */
+const state = {
+  notes: [],          // {id,title,body,created,updated}
+  annos: [],          // 気づきメモ {id,noteId,body,created,updated}
+  curPage: 0,         // 左端に見えているページ番号(0始まり)
+  totalPages: 1,
+  spread: false,      // 見開きか
+  pageStride: 0,      // 1ページ分の横移動量
+  chapterPages: {},   // noteId -> 開始ページ
+  editingId: null
+};
+const sortedNotes = () => [...state.notes].sort((a, b) => a.created - b.created);
+
+/* 章本文のレンダリング結果キャッシュ。
+   1章を保存するたびに全章のMarkdownを再変換すると章数に比例して
+   遅くなるため、id+updated が同じ間は前回のHTMLを使い回す。 */
+const renderCache = new Map(); // id -> {updated, html}
+function chapterHTML(n){
+  const c = renderCache.get(n.id);
+  if(c && c.updated === n.updated) return c.html;
+  const html = Markdown.render(n.body || "");
+  renderCache.set(n.id, { updated: n.updated, html });
+  return html;
+}
+
+/* ---------- Book: 組版・ページ送り ---------- */
+const flow = $("#flow"), book = $("#book"), viewport = $("#viewport");
+
+function buildBook(){
+  const sorted = sortedNotes();
+  const esc = Markdown.esc;
+  let html = "";
+  /* — 目次 — */
+  html += `<div class="pagepad"><div class="toc-block" id="tocTop">
+    <div class="toc-title">INDEX</div>
+    <div class="toc-sub">目 次 ・ 全 ${sorted.length} 章</div>`;
+  if(!sorted.length){
+    html += `<div class="toc-empty">まだ章がありません。<br>右上の「＋」から最初の一章を書くか、<br>メニューからメモを取り込んでください。</div>`;
+  }else{
+    sorted.forEach((n, idx) => {
+      html += `<div class="toc-item">
+        <button class="toc-go" data-go="${n.id}">
+          <span class="toc-num">${roman(idx+1)}</span>
+          <span class="toc-name">${esc(n.title || "無題")}</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page" data-pageof="${n.id}">·</span></button>
+        <button class="toc-edit" data-edit="${n.id}" aria-label="この章を編集">✒</button></div>`;
+    });
+  }
+  html += `</div>`;
+  /* — 各章 — */
+  sorted.forEach((n, idx) => {
+    const annoCount = annosOf(n.id).length;
+    html += `<div class="ch-head" id="ch-${n.id}">
+      <div class="ch-no">CAPUT ${roman(idx+1)}</div>
+      <h1 class="ch-title">${esc(n.title || "無題")}</h1>
+      <div class="ch-meta"><span>${fmtDate(n.created)}</span>
+        <button class="ch-edit" data-edit="${n.id}">✒ 編集</button>
+        <button class="ch-anno" data-anno="${n.id}">✎ 気づき${annoCount ? `・${annoCount}` : ""}</button></div>
+    </div>
+    <div class="ch-body">${chapterHTML(n)}</div>
+    <div class="ch-end">❦</div>`;
+  });
+  html += `</div>`;
+  flow.innerHTML = html;
+  /* 削除された章のキャッシュを掃除 */
+  const ids = new Set(sorted.map(n => n.id));
+  for(const id of [...renderCache.keys()]){ if(!ids.has(id)) renderCache.delete(id); }
+  layout(true);
+}
+
+/* 段組み=ページ。寸法を測ってページ送り量を決める */
+function layout(keepChapter){
+  const visibleId = keepChapter ? currentChapterId() : null;
+  const w = viewport.clientWidth;
+  state.spread = w >= CFG.SPREAD_MIN_W;
+  book.classList.toggle("spread", state.spread);
+  const gap = state.spread ? 70 : 40;
+  const pad = state.spread ? 56 : 28;
+  const pageW = state.spread ? (w - gap) / 2 - pad * 2 : w - pad * 2;
+  flow.style.padding = `26px ${pad}px 30px`;
+  flow.style.columnWidth = pageW + "px";
+  flow.style.columnGap = (gap + pad * 2) + "px";
+  state.pageStride = pageW + gap + pad * 2;
+  /* スタイル反映後の寸法で測るため、1フレーム待ってから読む */
+  requestAnimationFrame(() => {
+    state.totalPages = Math.max(1, Math.round((flow.scrollWidth + gap) / state.pageStride));
+    state.chapterPages = {};
+    const base = flow.getBoundingClientRect().left;
+    flow.querySelectorAll(".ch-head").forEach(el => {
+      const id = el.id.slice(3);
+      const dx = el.getBoundingClientRect().left - base;
+      state.chapterPages[id] = Math.max(0, Math.round((dx - pad) / state.pageStride));
+    });
+    /* 目次にページ数を書き込む */
+    flow.querySelectorAll("[data-pageof]").forEach(el => {
+      const p = state.chapterPages[el.dataset.pageof];
+      el.textContent = (p !== undefined) ? p + 1 : "·";
+    });
+    if(visibleId && state.chapterPages[visibleId] !== undefined) state.curPage = state.chapterPages[visibleId];
+    goToPage(state.curPage, true);
+  });
+}
+function currentChapterId(){
+  let best = null;
+  for(const [id, p] of Object.entries(state.chapterPages)){ if(p <= state.curPage) best = id; }
+  return best;
+}
+function stepSize(){ return state.spread ? 2 : 1; }
+function goToPage(p, instant){
+  const step = stepSize();
+  p = Math.max(0, Math.min(p, state.totalPages - 1));
+  if(state.spread) p = p - (p % 2);   // 見開きは偶数ページ起点
+  state.curPage = p;
+  flow.classList.toggle("noanim", !!instant);
+  flow.style.transform = `translateX(${-p * state.pageStride}px)`;
+  if(instant) requestAnimationFrame(() => flow.classList.remove("noanim"));
+  $("#pageLabel").textContent = state.spread && p + 2 <= state.totalPages
+    ? `${p+1} – ${p+2} / ${state.totalPages}`
+    : `${Math.min(p+1, state.totalPages)} / ${state.totalPages}`;
+  $("#pgPrev").disabled = p <= 0;
+  $("#pgNext").disabled = p + step >= state.totalPages;
+}
+const nextPage = () => goToPage(state.curPage + stepSize());
+const prevPage = () => goToPage(state.curPage - stepSize());
+
+/* ---- ページ操作: ボタン・キー・スワイプ・画面端タップ ---- */
+$("#pgNext").onclick = nextPage;
+$("#pgPrev").onclick = prevPage;
+
+document.addEventListener("keydown", e => {
+  /* 検索欄などの入力中は何もしない(スペースでページが飛ぶ事故防止) */
+  if(e.target.matches("input,textarea")) return;
+  if($("#editor").classList.contains("show")) return;
+  if(e.key === "Escape"){ closeSheets(); return; }
+  if(e.key === "ArrowRight" || e.key === " "){ e.preventDefault(); nextPage(); }
+  if(e.key === "ArrowLeft") prevPage();
+});
+
+/* スワイプ */
+let touchX = null, touchY = null;
+viewport.addEventListener("touchstart", e => {
+  touchX = e.touches[0].clientX; touchY = e.touches[0].clientY;
+}, { passive: true });
+viewport.addEventListener("touchend", e => {
+  if(touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  const dy = e.changedTouches[0].clientY - touchY;
+  if(Math.abs(dx) > CFG.SWIPE_MIN_X && Math.abs(dx) > Math.abs(dy) * CFG.SWIPE_RATIO){
+    dx < 0 ? nextPage() : prevPage();
+  }
+  touchX = null;
+}, { passive: true });
+
+/* クリックは1か所で集約処理する。
+   旧版は透明なタップ領域(div)を本文の上に重ねていたため、
+   その下のボタンや目次が押せないことがあった。座標判定方式なら
+   ボタン類を一切妨げずに「画面端タップでページ送り」を実現できる。 */
+viewport.addEventListener("click", e => {
+  const go = e.target.closest("[data-go]");
+  if(go){ const p = state.chapterPages[go.dataset.go]; if(p !== undefined) goToPage(p); return; }
+  const ed = e.target.closest("[data-edit]");
+  if(ed){ openEditor(ed.dataset.edit); return; }
+  const an = e.target.closest("[data-anno]");
+  if(an){ openAnnos(an.dataset.anno); return; }
+  if(e.target.closest("a,button")) return;
+  /* 本文の文字列を選択した直後のクリックでページが飛ばないように */
+  if(window.getSelection && String(window.getSelection()) !== "") return;
+  const r = viewport.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width;
+  if(x < CFG.EDGE_TAP) prevPage();
+  else if(x > 1 - CFG.EDGE_TAP) nextPage();
+});
+
+window.addEventListener("resize", debounce(() => layout(true), CFG.RESIZE_MS));
+
+/* ---------- 表紙 ---------- */
+$("#openBook").onclick = () => $("#cover").classList.add("hidden");
+function updateCoverCount(){
+  $("#coverCount").textContent = state.notes.length
+    ? `全 ${state.notes.length} 章を所蔵` : "最初の一章があなたを待っています";
+}
+
+/* ---------- Sheets: シート開閉・トースト ---------- */
+const veil = $("#veil");
+function openSheet(sel){ veil.classList.add("show"); $(sel).classList.add("show"); }
+function closeSheets(){
+  veil.classList.remove("show");
+  document.querySelectorAll(".sheet").forEach(s => s.classList.remove("show"));
+}
+veil.onclick = closeSheets;
+$("#btnMenu").onclick = () => openSheet("#menuSheet");
+$("#btnSearch").onclick = () => { openSheet("#searchSheet"); setTimeout(() => $("#srchInput").focus(), 300); };
+
+let toastTm;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTm); toastTm = setTimeout(() => t.classList.remove("show"), CFG.TOAST_MS);
+}
+
+/* ---------- Editor: 執筆・編集・削除 ---------- */
+function openEditor(id){
+  state.editingId = id || null;
+  const n = id ? state.notes.find(x => x.id === id) : null;
+  $("#edTitle").value = n ? n.title : "";
+  $("#edBody").value = n ? n.body : "";
+  $("#edDelete").style.visibility = n ? "visible" : "hidden";
+  $("#editor").classList.add("show");
+  closeSheets();
+  setTimeout(() => (n ? $("#edBody") : $("#edTitle")).focus(), 350);
+}
+$("#btnNew").onclick = () => openEditor(null);
+$("#miNew").onclick = () => openEditor(null);
+$("#edCancel").onclick = () => $("#editor").classList.remove("show");
+
+$("#edSave").onclick = async () => {
+  let title = $("#edTitle").value.trim();
+  let body = $("#edBody").value.trim();
+  /* 空メモの保存は弾く。旧版は題名の自動補完(「無題」)が先に走って
+     このチェックが効かず、空の章が作れてしまっていた。 */
+  if(!title && !body){ toast("題名か本文を入れてください"); return; }
+  if(!title){
+    const m = body.match(/^#{1,6}\s+(.+)/);
+    if(m){ title = m[1].trim(); body = body.replace(/^#{1,6}\s+.+\n?/, ""); }
+    else title = (body.split("\n")[0] || "").slice(0, CFG.TITLE_MAX) || "無題";
+  }
+  const now = Date.now();
+  if(state.editingId){
+    const n = state.notes.find(x => x.id === state.editingId);
+    n.title = title; n.body = body; n.updated = now;
+    await Store.put(CFG.STORE, n);
+    toast("章を綴じ直しました");
+  }else{
+    const n = { id: uid(), title, body, created: now, updated: now };
+    state.notes.push(n);
+    await Store.put(CFG.STORE, n);
+    toast(`第${roman(state.notes.length)}章として綴じました`);
+    state.editingId = n.id;
+  }
+  $("#editor").classList.remove("show");
+  const keep = state.editingId;
+  updateCoverCount(); buildBook(); Cloud.schedule();
+  setTimeout(() => { if(state.chapterPages[keep] !== undefined) goToPage(state.chapterPages[keep]); }, 120);
+};
+
+$("#edDelete").onclick = async () => {
+  if(!state.editingId) return;
+  const n = state.notes.find(x => x.id === state.editingId);
+  if(!confirm(`「${n.title}」をこの本から取り除きます。よろしいですか?`)) return;
+  await Store.remove(CFG.STORE, state.editingId);
+  state.notes = state.notes.filter(x => x.id !== state.editingId);
+  Cloud.addTombstone(state.editingId);
+  /* 資料が消えたら、その資料への気づきメモも一緒に取り除く
+     (孤児メモを残すと一覧が「宛先のない注釈」で埋まるため) */
+  for(const a of annosOf(state.editingId)){
+    await Store.remove(CFG.STORE_ANNOS, a.id);
+    Cloud.addAnnoTombstone(a.id);
+  }
+  state.annos = state.annos.filter(a => a.noteId !== state.editingId);
+  $("#editor").classList.remove("show");
+  toast("章を取り除きました");
+  updateCoverCount(); buildBook(); Cloud.schedule();
+};
+
+/* ---------- Importer: テキスト→章 ---------- */
+function splitTitle(text, fallback){
+  const m = text.match(/^\s*#{1,6}\s+(.+)/);
+  if(m) return { title: m[1].trim(), body: text.replace(/^\s*#{1,6}\s+.+\n?/, "") };
+  const first = (text.split("\n").find(l => l.trim()) || "").trim();
+  return { title: fallback || first.slice(0, CFG.TITLE_MAX) || "無題", body: text };
+}
+async function addNoteFromText(text, fallbackTitle){
+  const { title, body } = splitTitle(text, fallbackTitle);
+  const now = Date.now();
+  const n = { id: uid(), title, body: body.trim(), created: now, updated: now };
+  state.notes.push(n);
+  await Store.put(CFG.STORE, n);
+  return n;
+}
+/* ファイル(.md/.txt) */
+$("#miFiles").onclick = () => $("#fileMd").click();
+$("#fileMd").onchange = async e => {
+  const files = [...e.target.files];
+  if(!files.length) return;
+  for(const f of files){
+    const text = await f.text();
+    await addNoteFromText(text, f.name.replace(/\.(md|txt|markdown)$/i, ""));
+  }
+  e.target.value = "";
+  closeSheets(); toast(`${files.length}件のメモを章として綴じました`);
+  updateCoverCount(); buildBook(); Cloud.schedule();
+};
+/* クリップボード */
+$("#miClip").onclick = async () => {
+  try{
+    const text = await navigator.clipboard.readText();
+    if(!text || !text.trim()){ toast("クリップボードが空です"); return; }
+    const n = await addNoteFromText(text);
+    closeSheets(); toast(`「${n.title}」を綴じました`);
+    updateCoverCount(); buildBook(); Cloud.schedule();
+    setTimeout(() => { if(state.chapterPages[n.id] !== undefined) goToPage(state.chapterPages[n.id]); }, 150);
+  }catch(err){
+    /* iOS Safari は権限ダイアログ拒否などで読めないことがある。
+       その場合は手で貼り付けてもらう導線に切り替える。 */
+    closeSheets();
+    openEditor(null);
+    toast("読み取り不可のため、貼り付けて綴じてください");
+  }
+};
+/* URL経由の取り込み(ホスティング時): #add=URLエンコード文 */
+function checkHashImport(){
+  if(location.hash.startsWith("#add=")){
+    try{
+      const text = decodeURIComponent(location.hash.slice(5));
+      history.replaceState(null, "", location.pathname + location.search);
+      if(text.trim()){ openEditor(null); $("#edBody").value = text; $("#cover").classList.add("hidden"); }
+    }catch(e){}
+  }
+}
+
+/* ---------- Backup: 書き出し・復元 ---------- */
+$("#miExport").onclick = () => {
+  const data = { app: "scientia", version: 3, exported: new Date().toISOString(),
+    notes: state.notes, tombstones: Cloud.tombstones(),
+    annos: state.annos, annoTombs: Cloud.annoTombstones() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const d = new Date(), z = v => String(v).padStart(2, "0");
+  a.download = `scientia_${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  closeSheets(); toast("蔵書を書き出しました");
+};
+$("#miImportJson").onclick = () => $("#fileJson").click();
+$("#fileJson").onchange = async e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  try{
+    const data = JSON.parse(await f.text());
+    const arr = Array.isArray(data) ? data : data.notes;
+    if(!Array.isArray(arr)) throw 0;
+    let added = 0;
+    for(const n of arr){
+      if(!n || typeof n.body !== "string") continue;
+      if(state.notes.some(x => x.id === n.id)) continue;
+      const note = { id: n.id || uid(), title: String(n.title || "無題"), body: n.body,
+        created: n.created || Date.now(), updated: n.updated || Date.now() };
+      state.notes.push(note);
+      await Store.put(CFG.STORE, note);
+      added++;
+    }
+    /* v3バックアップなら気づきメモも復元(同idは既存優先) */
+    if(Array.isArray(data.annos)){
+      for(const a of data.annos){
+        if(!a || !a.id || !a.noteId || typeof a.body !== "string") continue;
+        if(state.annos.some(x => x.id === a.id)) continue;
+        const anno = { id: a.id, noteId: a.noteId, body: a.body,
+          created: a.created || Date.now(), updated: a.updated || Date.now() };
+        state.annos.push(anno);
+        await Store.put(CFG.STORE_ANNOS, anno);
+      }
+    }
+    toast(`${added}章を復元・統合しました`);
+    updateCoverCount(); buildBook(); Cloud.schedule();
+  }catch(err){ toast("読み込めないファイルです"); }
+  e.target.value = ""; closeSheets();
+};
+
+/* ---------- Search ---------- */
+function runSearch(){
+  const q = $("#srchInput").value.trim().toLowerCase();
+  const box = $("#srchResults");
+  if(!q){ box.innerHTML = ""; return; }
+  const esc = Markdown.esc;
+  const hits = state.notes
+    .filter(n => (n.title + "\n" + n.body).toLowerCase().includes(q))
+    .slice(0, CFG.SEARCH_MAX);
+  if(!hits.length){ box.innerHTML = `<div class="toc-empty">見つかりませんでした</div>`; return; }
+  const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  box.innerHTML = hits.map(n => {
+    const i = n.body.toLowerCase().indexOf(q);
+    const snip = i >= 0 ? n.body.slice(Math.max(0, i - 30), i + 60) : n.body.slice(0, 80);
+    const hl = esc(snip).replace(new RegExp(safeQ, "ig"), m => `<mark>${m}</mark>`);
+    return `<button class="srch-hit" data-go="${n.id}"><div class="sh-t">${esc(n.title)}</div><div class="sh-b">${hl}</div></button>`;
+  }).join("");
+}
+$("#srchInput").oninput = debounce(runSearch, CFG.SEARCH_MS);
+$("#srchResults").onclick = e => {
+  const b = e.target.closest("[data-go]");
+  if(!b) return;
+  closeSheets();
+  const p = state.chapterPages[b.dataset.go];
+  if(p !== undefined) goToPage(p);
+};
+
+/* ---------- Annos: 気づきメモ(資料への注釈) ---------- */
+/* 本文に書き込むと資料が汚れるため、気づきは独立データとして持つ。
+   各メモは noteId で資料に紐づき、資料名・作成日・資料への
+   ジャンプリンクを常に一緒に表示する。 */
+let annoFilterId = null;    // 一覧の絞り込み先(null = すべて)
+let annoEditingId = null;   // 編集中メモのid(null = 新規)
+let annoDraftNoteId = null; // 新規メモの紐づけ先資料
+
+const annosOf = noteId => state.annos.filter(a => a.noteId === noteId);
+function noteTitleOf(id){
+  const n = state.notes.find(x => x.id === id);
+  return n ? (n.title || "無題") : "(取り除かれた資料)";
+}
+
+function openAnnos(noteId){
+  annoFilterId = noteId || null;
+  renderAnnos();
+  closeSheets();
+  openSheet("#annoSheet");
+}
+function renderAnnos(){
+  const esc = Markdown.esc;
+  const ctx = $("#annoCtx"), list = $("#annoList");
+  if(annoFilterId){
+    ctx.innerHTML = `<div class="anno-ctx">
+        <span class="ac-name">⌖ ${esc(noteTitleOf(annoFilterId))}</span>
+        <button class="ac-all" id="annoAll">すべて表示</button></div>
+      <button class="anno-add" id="annoAdd">＋ この資料に気づきを書く</button>`;
+    $("#annoAll").onclick = () => { annoFilterId = null; renderAnnos(); };
+    $("#annoAdd").onclick = () => openAnnoEditor(null, annoFilterId);
+  }else{
+    ctx.innerHTML = `<div class="anno-ctx"><span class="ac-name">すべての気づき</span></div>`;
+  }
+  const items = (annoFilterId ? annosOf(annoFilterId) : [...state.annos])
+    .sort((a, b) => b.created - a.created);  // 新しい気づきを上に
+  if(!items.length){
+    list.innerHTML = `<div class="anno-empty">まだ気づきがありません。<br>${
+      annoFilterId ? "上の「＋」から最初の気づきを書き留めてください。"
+                   : "各資料の章題の下にある「✎ 気づき」から書き留められます。"}</div>`;
+    return;
+  }
+  list.innerHTML = items.map(a => `<div class="anno-item">
+    <div class="anno-meta">
+      <button class="anno-src" data-annogo="${a.noteId}">⌖ ${esc(noteTitleOf(a.noteId))}</button>
+      <span class="anno-date">${fmtDate(a.created)}</span>
+      <button class="anno-edit" data-annoedit="${a.id}" aria-label="この気づきを編集">✒</button>
+    </div>
+    <div class="anno-body">${esc(a.body)}</div>
+  </div>`).join("");
+}
+$("#annoList").onclick = e => {
+  const go = e.target.closest("[data-annogo]");
+  if(go){
+    const p = state.chapterPages[go.dataset.annogo];
+    if(p === undefined){ toast("この資料は本から取り除かれています"); return; }
+    closeSheets();
+    $("#cover").classList.add("hidden");  // 表紙画面からでも資料に直行できるように
+    goToPage(p);
+    return;
+  }
+  const ed = e.target.closest("[data-annoedit]");
+  if(ed) openAnnoEditor(ed.dataset.annoedit, null);
+};
+
+function openAnnoEditor(annoId, noteId){
+  annoEditingId = annoId || null;
+  const a = annoId ? state.annos.find(x => x.id === annoId) : null;
+  annoDraftNoteId = a ? a.noteId : noteId;
+  $("#annoEditCap").textContent = "⌖ " + noteTitleOf(annoDraftNoteId);
+  $("#annoBody").value = a ? a.body : "";
+  $("#annoDelete").style.visibility = a ? "visible" : "hidden";
+  closeSheets();
+  openSheet("#annoEditSheet");
+  setTimeout(() => $("#annoBody").focus(), 300);
+}
+$("#annoCancel").onclick = () => openAnnos(annoFilterId);
+$("#annoSave").onclick = async () => {
+  const body = $("#annoBody").value.trim();
+  if(!body){ toast("気づきを入力してください"); return; }
+  const now = Date.now();
+  if(annoEditingId){
+    const a = state.annos.find(x => x.id === annoEditingId);
+    a.body = body; a.updated = now;
+    await Store.put(CFG.STORE_ANNOS, a);
+    toast("気づきを書き直しました");
+  }else{
+    const a = { id: uid(), noteId: annoDraftNoteId, body, created: now, updated: now };
+    state.annos.push(a);
+    await Store.put(CFG.STORE_ANNOS, a);
+    toast("気づきを書き留めました");
+  }
+  buildBook();          // 章側の「✎ 気づき・n」の件数表示を更新
+  Cloud.schedule();
+  openAnnos(annoFilterId);
+};
+$("#annoDelete").onclick = async () => {
+  if(!annoEditingId) return;
+  if(!confirm("この気づきを取り除きます。よろしいですか?")) return;
+  await Store.remove(CFG.STORE_ANNOS, annoEditingId);
+  state.annos = state.annos.filter(x => x.id !== annoEditingId);
+  Cloud.addAnnoTombstone(annoEditingId);
+  toast("気づきを取り除きました");
+  buildBook(); Cloud.schedule();
+  openAnnos(annoFilterId);
+};
+$("#miAnnos").onclick = () => openAnnos(null);
+
+/* ---------- メニュー残り ---------- */
+$("#miToc").onclick = () => { closeSheets(); goToPage(0); };
+$("#miCover").onclick = () => { closeSheets(); $("#cover").classList.remove("hidden"); };
+$("#miTheme").onclick = () => {
+  const next = document.body.dataset.theme === "night" ? "vellum" : "night";
+  document.body.dataset.theme = next;
+  localStorage.setItem(CFG.LS.THEME, next);
+  closeSheets();
+  toast(next === "night" ? "夜の書斎に変えました" : "羊皮紙に変えました");
+};
+
+/* ---------- Cloud: GAS同期 ---------- */
+/* 通信仕様は旧版と完全互換:
+   POST {key, action:"pull"}              -> {ok, data:{notes,tombstones}}
+   POST {key, action:"push", data:{...}}  -> {ok}
+   マージ規則: idごとに updated が新しい方を採用。
+   削除は「墓標」(id+削除時刻)で伝播し、削除時刻がそのメモの
+   更新時刻以降なら消す。墓標は90日で掃除する。 */
+const Cloud = (() => {
+  const cfg = () => ({
+    url: localStorage.getItem(CFG.LS.GAS_URL) || "",
+    key: localStorage.getItem(CFG.LS.GAS_KEY) || ""
+  });
+  const tombstones = () => {
+    try{ return JSON.parse(localStorage.getItem(CFG.LS.TOMBS) || "[]"); }
+    catch(e){ return []; }
+  };
+  const setTombstones = a => localStorage.setItem(CFG.LS.TOMBS, JSON.stringify(a));
+  function addTombstone(id){
+    const t = tombstones().filter(x => x.id !== id);
+    t.push({ id, ts: Date.now() });
+    setTombstones(t);
+  }
+  /* 気づきメモ用の墓標(章の墓標と同じ仕組み・別キー) */
+  const annoTombstones = () => {
+    try{ return JSON.parse(localStorage.getItem(CFG.LS.ANNO_TOMBS) || "[]"); }
+    catch(e){ return []; }
+  };
+  const setAnnoTombstones = a => localStorage.setItem(CFG.LS.ANNO_TOMBS, JSON.stringify(a));
+  function addAnnoTombstone(id){
+    const t = annoTombstones().filter(x => x.id !== id);
+    t.push({ id, ts: Date.now() });
+    setAnnoTombstones(t);
+  }
+
+  async function gasCall(payload){
+    const c = cfg();
+    const ctrl = new AbortController();
+    const tm = setTimeout(() => ctrl.abort(), CFG.SYNC_TIMEOUT_MS);
+    try{
+      const res = await fetch(c.url, {
+        method: "POST", redirect: "follow", signal: ctrl.signal,
+        headers: { "Content-Type": "text/plain;charset=utf-8" },  // preflight回避
+        body: JSON.stringify({ key: c.key, ...payload })
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const j = await res.json();
+      if(!j.ok) throw new Error(j.error || "server error");
+      return j;
+    }finally{ clearTimeout(tm); }
+  }
+
+  /* ローカルとサーバーのデータを突き合わせ、勝者を決める純関数。
+     章にも気づきメモにも同じ規則を使う(normalize だけが異なる)。
+     副作用がないので将来の仕様変更時に単体で検証できる。 */
+  function mergeSet(localItems, serverItems, localTombs, serverTombs, normalize){
+    const map = new Map(localItems.map(n => [n.id, n]));
+    for(const s of serverItems){
+      const v = normalize(s);
+      if(!v) continue;
+      const l = map.get(v.id);
+      if(!l || (v.updated || 0) > (l.updated || 0)) map.set(v.id, v);
+    }
+    const allTombs = [...localTombs];
+    for(const t of serverTombs){
+      if(t && t.id && !allTombs.some(x => x.id === t.id && x.ts >= t.ts)) allTombs.push(t);
+    }
+    for(const t of allTombs){
+      const n = map.get(t.id);
+      if(n && t.ts >= (n.updated || 0)) map.delete(t.id);
+    }
+    const keptTombs = allTombs.filter(t => Date.now() - t.ts < CFG.TOMB_TTL_MS);
+    return { items: [...map.values()], tombstones: keptTombs };
+  }
+  const normNote = s => (!s || !s.id || typeof s.body !== "string") ? null :
+    { id: s.id, title: String(s.title || "無題"), body: s.body,
+      created: s.created || Date.now(), updated: s.updated || Date.now() };
+  const normAnno = s => (!s || !s.id || !s.noteId || typeof s.body !== "string") ? null :
+    { id: s.id, noteId: s.noteId, body: s.body,
+      created: s.created || Date.now(), updated: s.updated || Date.now() };
+
+  function statusText(){
+    const el = $("#syncStatus");
+    if(!el) return;
+    if(!cfg().url){ el.textContent = "未設定 — まず下の「同期の設定」から"; return; }
+    const t = localStorage.getItem(CFG.LS.LAST_SYNC);
+    el.textContent = t ? `前回の同期: ${new Date(+t).toLocaleString("ja-JP")}` : "設定済み — タップして同期";
+  }
+
+  let syncing = false;
+  async function sync(silent){
+    if(syncing) return;
+    if(!cfg().url){ if(!silent){ closeSheets(); openSheet("#cloudSheet"); } return; }
+    syncing = true; $("#miSync").classList.add("busy");
+    try{
+      const r = await gasCall({ action: "pull" });
+      const sv = r.data || {};
+      const arr = v => Array.isArray(v) ? v : [];
+      const mN = mergeSet(state.notes, arr(sv.notes), tombstones(), arr(sv.tombstones), normNote);
+      const mA = mergeSet(state.annos, arr(sv.annos), annoTombstones(), arr(sv.annoTombs), normAnno);
+      setTombstones(mN.tombstones);
+      setAnnoTombstones(mA.tombstones);
+      /* ローカルDBへ反映(消えたものは削除、残りは上書き) */
+      const noteIds = new Set(mN.items.map(n => n.id));
+      for(const old of state.notes){ if(!noteIds.has(old.id)) await Store.remove(CFG.STORE, old.id); }
+      for(const n of mN.items) await Store.put(CFG.STORE, n);
+      state.notes = mN.items;
+      const annoIds = new Set(mA.items.map(a => a.id));
+      for(const old of state.annos){ if(!annoIds.has(old.id)) await Store.remove(CFG.STORE_ANNOS, old.id); }
+      for(const a of mA.items) await Store.put(CFG.STORE_ANNOS, a);
+      state.annos = mA.items;
+      /* サーバーへ反映。旧版GASは annos/annoTombs を保存せず無視するだけ
+         なので、GAS未更新でも章の同期は壊れない(メモは端末内に残る)。 */
+      await gasCall({ action: "push", data: {
+        notes: state.notes, tombstones: mN.tombstones,
+        annos: state.annos, annoTombs: mA.tombstones } });
+      localStorage.setItem(CFG.LS.LAST_SYNC, String(Date.now()));
+      statusText(); updateCoverCount(); buildBook();
+      if(!silent) toast(`同期完了 — 全 ${state.notes.length} 章`);
+    }catch(err){
+      if(!silent) toast("同期できませんでした: " + (err.name === "AbortError" ? "時間切れ" : (err.message || "通信エラー")));
+    }finally{
+      syncing = false; $("#miSync").classList.remove("busy");
+    }
+  }
+
+  const schedule = debounce(() => { if(cfg().url) sync(true); }, CFG.SYNC_DELAY_MS);
+
+  return { cfg, tombstones, addTombstone, annoTombstones, addAnnoTombstone, statusText, sync, schedule };
+})();
+
+$("#miSync").onclick = () => Cloud.sync(false);
+$("#miCloudCfg").onclick = () => {
+  $("#cldUrl").value = Cloud.cfg().url;
+  $("#cldKey").value = Cloud.cfg().key;
+  closeSheets(); openSheet("#cloudSheet");
+};
+$("#cldSave").onclick = async () => {
+  const url = $("#cldUrl").value.trim(), key = $("#cldKey").value.trim();
+  if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){
+    toast("GASのURL(script.google.com)を入れてください"); return;
+  }
+  localStorage.setItem(CFG.LS.GAS_URL, url);
+  localStorage.setItem(CFG.LS.GAS_KEY, key);
+  closeSheets(); Cloud.statusText();
+  toast("接続を確認しています…");
+  await Cloud.sync(false);
+};
+$("#cldOff").onclick = () => {
+  localStorage.removeItem(CFG.LS.GAS_URL);
+  localStorage.removeItem(CFG.LS.GAS_KEY);
+  closeSheets(); Cloud.statusText();
+  toast("同期を解除しました(蔵書は端末に残ります)");
+};
+
+/* ---------- 初回ガイド章 ---------- */
+const GUIDE = `この本「Scientia(スキエンティア)」へようこそ。Scientiaはラテン語で「知識」。あなたのメモが、章となり、目次を持つ一冊の本になります。
+
+## 章を増やす方法
+
+1. **この場で書く** — 右上の「＋」から。1行目を「# 題名」にすると自動で題名になります
+2. **ファイル取り込み** — メニュー →「ファイルを取り込む」。Obsidianの .md やテキストファイルを複数まとめて綴じられます
+3. **クリップボード取り込み** — NotionやSafariで文章をコピー → メニュー →「クリップボードから取り込む」
+
+## iPhoneの共有シートから送る
+
+「ショートカット」アプリで一度だけ設定すれば、どのアプリからでも共有→Scientiaに送れます。
+
+1. ショートカットアプリで新規作成し、名前を「Scientiaへ送る」に
+2. 「クリップボードにコピー」アクションを追加(入力: ショートカットの入力)
+3. 「URLを開く」アクションを追加し、このアプリのURLを指定
+4. 設定(ⓘ)で「共有シートに表示」をオン
+5. 以後、共有 → Scientiaへ送る → アプリ内メニューの「クリップボードから取り込む」
+
+## 本の読み方
+
+- ページは **左右スワイプ**、画面端タップ、矢印キーでめくれます
+- 巻頭の **INDEX(目次)** から各章へ飛べます
+- 章題の下の「✒ 編集」、または目次の各行の「✒」でいつでも書き直せます
+- iPadや横向きでは **見開き2ページ** になります
+
+## 気づきメモ(注釈)
+
+読み返して気づいたことは、本文に書き込まず **「気づきメモ」** に書き留められます。
+
+- 各章の章題の下にある **「✎ 気づき」** から、その資料への気づきを書きます
+- メニューの **「気づきメモ」** で、すべての気づきを一覧できます
+- 各メモには **資料名・作成日・資料へのジャンプリンク** が自動で付きます
+
+## 大切なこと
+
+> 蔵書はこの端末のブラウザ内(IndexedDB)に保存されます。ときどきメニューの「蔵書を書き出す」でバックアップを残してください。
+
+Safariの共有メニューから **「ホーム画面に追加」** すると、全画面の本としてお使いいただけます。
+
+---
+
+Scientia potentia est — 知識は力なり。`;
+
+/* ---------- 起動 ---------- */
+(async function init(){
+  const th = localStorage.getItem(CFG.LS.THEME);
+  if(th) document.body.dataset.theme = th;
+  await Store.open();
+  state.notes = await Store.all(CFG.STORE);
+  state.annos = await Store.all(CFG.STORE_ANNOS);
+  if(!state.notes.length && !localStorage.getItem(CFG.LS.GUIDED)){
+    const now = Date.now();
+    const g = { id: uid(), title: "はじめに — この本の使い方", body: GUIDE, created: now, updated: now };
+    state.notes.push(g);
+    await Store.put(g);
+    localStorage.setItem(CFG.LS.GUIDED, "1");
+  }
+  updateCoverCount();
+  buildBook();
+  checkHashImport();
+  Cloud.statusText();
+  if(Cloud.cfg().url) Cloud.sync(true);
+})();
+</script>
+</body>
+</html>
