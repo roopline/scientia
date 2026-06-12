@@ -108,7 +108,7 @@ header.bar{
 /* ============ 書見台(本の領域) ============ */
 #stage{flex:1; position:relative; display:flex; align-items:stretch; justify-content:center; padding:6px 14px 4px; min-height:0}
 #book{
-  position:relative; width:100%; max-width:1080px; height:100%;
+  position:relative; width:100%; max-width:min(1480px, 97vw); height:100%;
   background:
     linear-gradient(105deg, rgba(0,0,0,.12), rgba(0,0,0,0) 8%),
     radial-gradient(140% 120% at 50% -20%, #fff8ea08, transparent),
@@ -143,9 +143,10 @@ header.bar{
 .pagepad{padding:0 8px}
 
 /* ---- タイポグラフィ(本文) ---- */
-#flow{font-size:16px; line-height:2.05; color:var(--ink); letter-spacing:.02em}
+/* 画面幅に応じて 16〜19px へ連動 (見出しは em でフォローする) */
+#flow{font-size:clamp(16px, 0.45vw + 13px, 19px); line-height:2.05; color:var(--ink); letter-spacing:.02em}
 #flow h1.ch-title{
-  font-size:24px; font-weight:700; line-height:1.6; letter-spacing:.06em;
+  font-size:1.5em; font-weight:700; line-height:1.6; letter-spacing:.06em;
   margin:8px 0 14px; break-after:avoid;
 }
 .ch-head{break-inside:avoid; padding-top:26px; position:relative}
@@ -163,9 +164,9 @@ header.bar{
 .ch-edit:active{background:var(--bronze-line)}
 .ch-end{display:flex;justify-content:center;color:var(--bronze);font-size:14px;padding:26px 0 40px;letter-spacing:1em;text-indent:1em}
 
-#flow h2{font-size:19px;margin:26px 0 10px;font-weight:700;letter-spacing:.05em;break-after:avoid;
+#flow h2{font-size:1.19em;margin:26px 0 10px;font-weight:700;letter-spacing:.05em;break-after:avoid;
   border-left:3px solid var(--rubric); padding-left:12px; line-height:1.6}
-#flow h3{font-size:17px;margin:22px 0 8px;font-weight:700;break-after:avoid;line-height:1.6}
+#flow h3{font-size:1.06em;margin:22px 0 8px;font-weight:700;break-after:avoid;line-height:1.6}
 #flow p{margin:0 0 1.1em; text-align:justify}
 #flow ul,#flow ol{margin:0 0 1.1em 1.5em}
 #flow li{margin-bottom:.3em}
@@ -386,8 +387,9 @@ footer.pager{
 }
 @media (max-width:480px){
   :root{--gap:40px}
-  #flow{font-size:15.5px}
-  #stage{padding:2px 10px 2px}
+  /* iPhone: 縮小せず読みやすい大きさを維持し、余白を切り詰めて本文幅を最大化 */
+  #flow{font-size:16.5px}
+  #stage{padding:2px 5px 2px}
 }
 </style>
 </head>
@@ -814,7 +816,8 @@ function layout(keepChapter){
   state.spread = w >= CFG.SPREAD_MIN_W;
   book.classList.toggle("spread", state.spread);
   const gap = state.spread ? 70 : 40;
-  const pad = state.spread ? 56 : 28;
+  /* スマホ幅では左右パディングを詰めて本文の実効幅を確保する */
+  const pad = state.spread ? 56 : (w <= 520 ? 16 : 28);
   const pageW = state.spread ? (w - gap) / 2 - pad * 2 : w - pad * 2;
   flow.style.padding = `26px ${pad}px 30px`;
   flow.style.columnWidth = pageW + "px";
