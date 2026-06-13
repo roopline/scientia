@@ -108,7 +108,7 @@ header.bar{
 /* ============ 書見台(本の領域) ============ */
 #stage{flex:1; position:relative; display:flex; align-items:stretch; justify-content:center; padding:6px 14px 4px; min-height:0}
 #book{
-  position:relative; width:100%; max-width:min(1480px, 97vw); height:100%;
+  position:relative; width:100%; max-width:min(920px, 96vw); height:100%;
   background:
     linear-gradient(105deg, rgba(0,0,0,.12), rgba(0,0,0,0) 8%),
     radial-gradient(140% 120% at 50% -20%, #fff8ea08, transparent),
@@ -129,15 +129,15 @@ header.bar{
   background:linear-gradient(90deg, transparent, rgba(60,40,15,.16) 48%, rgba(60,40,15,.22) 50%, rgba(60,40,15,.16) 52%, transparent);
   pointer-events:none; z-index:3;
 }
-#viewport{position:absolute; inset:0; overflow:hidden; border-radius:inherit}
+/* 縦スクロール: viewport がスクロールコンテナ、flow は中央寄せの記事カラム */
+#viewport{position:absolute; inset:0; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; border-radius:inherit; scroll-behavior:smooth}
 #flow{
-  position:relative; height:100%;
-  column-fill:auto; column-gap:var(--gap); column-width:var(--page-w);
-  padding:0; transition:transform .45s cubic-bezier(.22,.8,.3,1);
-  will-change:transform;
+  position:relative; height:auto;
+  max-width:700px; margin:0 auto;
+  padding:34px 30px 90px;
   user-select:text; -webkit-user-select:text;
 }
-#flow.noanim{transition:none}
+#flow.noanim{}
 
 /* ページ余白は段組み内の内側パディングで表現 */
 .pagepad{padding:0 8px}
@@ -248,16 +248,20 @@ header.bar{
 
 /* ---- ページめくり操作 ---- */
 footer.pager{
-  display:flex; align-items:center; justify-content:center; gap:18px;
-  padding:8px 0 10px; color:#b9a47c;
+  display:flex; align-items:center; gap:14px;
+  padding:8px 16px 10px; color:#b9a47c;
 }
 .pager .pg-btn{
-  font-size:17px; width:44px; height:36px; display:grid; place-items:center;
-  color:#cbb792; border:1px solid #c9a25e33; border-radius:99px;
+  flex:none; font-size:12px; letter-spacing:.16em; height:34px; padding:0 14px; display:grid; place-items:center;
+  color:#cbb792; border:1px solid #c9a25e33; border-radius:99px; white-space:nowrap;
 }
 .pager .pg-btn:active{background:#ffffff12}
 .pager .pg-btn:disabled{opacity:.3}
-#pageLabel{font-family:var(--roman); font-size:12px; letter-spacing:.28em; min-width:120px; text-align:center}
+#pageLabel{flex:1; min-width:0; font-family:var(--roman); font-size:12px; letter-spacing:.18em; text-align:center;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#b9a47c}
+/* 読書プログレスバー(ヘッダー直下) */
+#progbar{height:2px; background:rgba(201,162,94,.12); flex:none}
+#progfill{height:100%; width:0%; background:linear-gradient(90deg,#b08c4e,#d9b876); transition:width .15s ease}
 
 /* ============ 共通オーバーレイ・シート ============ */
 .veil{position:absolute; inset:0; background:rgba(15,11,6,.6); z-index:70;
@@ -385,11 +389,12 @@ footer.pager{
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important; animation:none!important}
 }
-@media (max-width:480px){
-  :root{--gap:40px}
-  /* iPhone: 縮小せず読みやすい大きさを維持し、余白を切り詰めて本文幅を最大化 */
-  #flow{font-size:16.5px}
-  #stage{padding:2px 5px 2px}
+@media (max-width:560px){
+  /* iPhone: ページ枠を全幅・角丸なしにして本文幅を最大化、縦スクロールで読む */
+  #stage{padding:0}
+  #book{max-width:100%; border-radius:0}
+  #book::after{display:none}
+  #flow{font-size:16.5px; max-width:100%; padding:24px 18px 90px}
 }
 </style>
 </head>
@@ -424,6 +429,8 @@ footer.pager{
     </div>
   </header>
 
+  <div id="progbar"><div id="progfill"></div></div>
+
   <div id="stage">
     <div id="book">
       <div id="viewport"><div id="flow"></div></div>
@@ -431,9 +438,9 @@ footer.pager{
   </div>
 
   <footer class="pager">
-    <button class="pg-btn" id="pgPrev" aria-label="前のページ">‹</button>
+    <button class="pg-btn" id="pgToc" aria-label="目次へ">☰ 目次</button>
     <div id="pageLabel">—</div>
-    <button class="pg-btn" id="pgNext" aria-label="次のページ">›</button>
+    <button class="pg-btn" id="pgTop" aria-label="先頭へ戻る">↑ 先頭</button>
   </footer>
 </div>
 
@@ -710,12 +717,6 @@ const state = {
   notes: [],          // メモ {id,title,body,catId,created,updated}
   annos: [],          // 気づきメモ {id,noteId,body,created,updated}
   cats: [],           // 章 {id,name,created,updated}
-  curPage: 0,         // 左端に見えているページ番号(0始まり)
-  totalPages: 1,
-  spread: false,      // 見開きか
-  pageStride: 0,      // 1ページ分の横移動量
-  chapterPages: {},   // noteId -> 開始ページ
-  catPages: {},       // catId -> 章扉の開始ページ
   editingId: null
 };
 const sortedNotes = () => [...state.notes].sort((a, b) => a.created - b.created);
@@ -769,14 +770,14 @@ function buildBook(){
           <span class="toc-cat-no">PARS ${roman(gi+1)}</span>
           <span class="toc-cat-name">${esc(g.name)}</span>
           <span class="toc-dots"></span>
-          <span class="toc-page" data-pageofcat="${g.id}">·</span></button></div>`;
+          <span class="toc-page">›</span></button></div>`;
       g.notes.forEach((n, idx) => {
         html += `<div class="toc-item">
           <button class="toc-go" data-go="${n.id}">
             <span class="toc-num">${idx+1}</span>
             <span class="toc-name">${esc(n.title || "無題")}</span>
             <span class="toc-dots"></span>
-            <span class="toc-page" data-pageof="${n.id}">·</span></button>
+            <span class="toc-page">›</span></button>
           <button class="toc-edit" data-edit="${n.id}" aria-label="このメモを編集">✒</button></div>`;
       });
     });
@@ -809,124 +810,81 @@ function buildBook(){
   layout(true);
 }
 
-/* 段組み=ページ。寸法を測ってページ送り量を決める */
-function layout(keepChapter){
-  const visibleId = keepChapter ? currentChapterId() : null;
-  const w = viewport.clientWidth;
-  state.spread = w >= CFG.SPREAD_MIN_W;
-  book.classList.toggle("spread", state.spread);
-  const gap = state.spread ? 70 : 40;
-  /* スマホ幅では左右パディングを詰めて本文の実効幅を確保する */
-  const pad = state.spread ? 56 : (w <= 520 ? 16 : 28);
-  const pageW = state.spread ? (w - gap) / 2 - pad * 2 : w - pad * 2;
-  flow.style.padding = `26px ${pad}px 30px`;
-  flow.style.columnWidth = pageW + "px";
-  flow.style.columnGap = (gap + pad * 2) + "px";
-  state.pageStride = pageW + gap + pad * 2;
-  /* スタイル反映後の寸法で測るため、1フレーム待ってから読む */
-  requestAnimationFrame(() => {
-    state.totalPages = Math.max(1, Math.round((flow.scrollWidth + gap) / state.pageStride));
-    state.chapterPages = {};
-    const base = flow.getBoundingClientRect().left;
-    flow.querySelectorAll(".ch-head").forEach(el => {
-      const id = el.id.slice(3);
-      const dx = el.getBoundingClientRect().left - base;
-      state.chapterPages[id] = Math.max(0, Math.round((dx - pad) / state.pageStride));
-    });
-    /* 章扉の開始ページも測る(目次の章行からのジャンプ先) */
-    state.catPages = {};
-    flow.querySelectorAll(".cat-head").forEach(el => {
-      const id = el.id.slice(4);
-      const dx = el.getBoundingClientRect().left - base;
-      state.catPages[id] = Math.max(0, Math.round((dx - pad) / state.pageStride));
-    });
-    /* 目次にページ数を書き込む */
-    flow.querySelectorAll("[data-pageof]").forEach(el => {
-      const p = state.chapterPages[el.dataset.pageof];
-      el.textContent = (p !== undefined) ? p + 1 : "·";
-    });
-    flow.querySelectorAll("[data-pageofcat]").forEach(el => {
-      const p = state.catPages[el.dataset.pageofcat];
-      el.textContent = (p !== undefined) ? p + 1 : "·";
-    });
-    if(visibleId && state.chapterPages[visibleId] !== undefined) state.curPage = state.chapterPages[visibleId];
-    goToPage(state.curPage, true);
-  });
-}
-function currentChapterId(){
-  let best = null;
-  for(const [id, p] of Object.entries(state.chapterPages)){ if(p <= state.curPage) best = id; }
-  return best;
-}
-function stepSize(){ return state.spread ? 2 : 1; }
-function goToPage(p, instant){
-  const step = stepSize();
-  p = Math.max(0, Math.min(p, state.totalPages - 1));
-  if(state.spread) p = p - (p % 2);   // 見開きは偶数ページ起点
-  state.curPage = p;
-  flow.classList.toggle("noanim", !!instant);
-  flow.style.transform = `translateX(${-p * state.pageStride}px)`;
-  if(instant) requestAnimationFrame(() => flow.classList.remove("noanim"));
-  $("#pageLabel").textContent = state.spread && p + 2 <= state.totalPages
-    ? `${p+1} – ${p+2} / ${state.totalPages}`
-    : `${Math.min(p+1, state.totalPages)} / ${state.totalPages}`;
-  $("#pgPrev").disabled = p <= 0;
-  $("#pgNext").disabled = p + step >= state.totalPages;
-}
-const nextPage = () => goToPage(state.curPage + stepSize());
-const prevPage = () => goToPage(state.curPage - stepSize());
+/* 縦スクロール版。段組みは使わず、要素位置へスクロールして移動する。
+   layout() は互換のため残すが、進捗表示の更新のみ行う(再計測は不要)。 */
+function layout(){ updateProgress(); }
 
-/* ---- ページ操作: ボタン・キー・スワイプ・画面端タップ ---- */
-$("#pgNext").onclick = nextPage;
-$("#pgPrev").onclick = prevPage;
+/* viewport(スクロールコンテナ)内での要素の上端Yを返す */
+function offsetInViewport(el){
+  return el.getBoundingClientRect().top - flow.getBoundingClientRect().top;
+}
+function scrollToEl(elId, instant){
+  const el = document.getElementById(elId);
+  if(!el) return false;
+  viewport.scrollTo({ top: Math.max(0, offsetInViewport(el) - 6), behavior: instant ? "auto" : "smooth" });
+  return true;
+}
+function scrollToChapter(noteId, instant){ return scrollToEl("ch-" + noteId, instant); }
+function scrollToCat(catId, instant){ return scrollToEl("cat-" + catId, instant); }
+function scrollTop(instant){ viewport.scrollTo({ top: 0, behavior: instant ? "auto" : "smooth" }); }
+
+/* 現在ビューポート上端付近にある章/メモの見出し名を返す(進捗ラベル用) */
+function currentHeadingName(){
+  const vTop = viewport.getBoundingClientRect().top;
+  let best = null;
+  flow.querySelectorAll(".cat-head, .ch-head").forEach(el => {
+    if(el.getBoundingClientRect().top - vTop <= 72) best = el;
+  });
+  if(!best) return null;
+  const t = best.querySelector(".ch-title, .cat-name");
+  return t ? t.textContent.trim() : null;
+}
+function updateProgress(){
+  const max = viewport.scrollHeight - viewport.clientHeight;
+  const r = max > 4 ? Math.min(1, Math.max(0, viewport.scrollTop / max)) : 0;
+  const fill = $("#progfill"); if(fill) fill.style.width = Math.round(r * 100) + "%";
+  const name = currentHeadingName();
+  $("#pageLabel").textContent = name ? name : (max > 4 ? Math.round(r * 100) + "%" : "INDEX");
+}
+
+/* ---- 操作: フッターボタン・キーボード・スクロール監視 ---- */
+$("#pgToc").onclick = () => scrollTop();
+$("#pgTop").onclick = () => scrollTop();
 
 document.addEventListener("keydown", e => {
-  /* 検索欄などの入力中は何もしない(スペースでページが飛ぶ事故防止) */
   if(e.target.matches("input,textarea")) return;
   if($("#editor").classList.contains("show")) return;
   if(e.key === "Escape"){ closeSheets(); return; }
-  if(e.key === "ArrowRight" || e.key === " "){ e.preventDefault(); nextPage(); }
-  if(e.key === "ArrowLeft") prevPage();
+  /* アプリは inset:0 固定のため window は流れない。viewport を明示スクロール */
+  if(e.key === "ArrowDown" || e.key === " "){ e.preventDefault(); viewport.scrollBy({ top: e.key === " " ? viewport.clientHeight * 0.88 : 120, behavior: "smooth" }); }
+  if(e.key === "ArrowUp"){ e.preventDefault(); viewport.scrollBy({ top: -120, behavior: "smooth" }); }
+  if(e.key === "PageDown"){ e.preventDefault(); viewport.scrollBy({ top: viewport.clientHeight * 0.88, behavior: "smooth" }); }
+  if(e.key === "PageUp"){ e.preventDefault(); viewport.scrollBy({ top: -viewport.clientHeight * 0.88, behavior: "smooth" }); }
+  if(e.key === "Home"){ e.preventDefault(); scrollTop(); }
+  if(e.key === "End"){ e.preventDefault(); viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" }); }
 });
 
-/* スワイプ */
-let touchX = null, touchY = null;
-viewport.addEventListener("touchstart", e => {
-  touchX = e.touches[0].clientX; touchY = e.touches[0].clientY;
-}, { passive: true });
-viewport.addEventListener("touchend", e => {
-  if(touchX === null) return;
-  const dx = e.changedTouches[0].clientX - touchX;
-  const dy = e.changedTouches[0].clientY - touchY;
-  if(Math.abs(dx) > CFG.SWIPE_MIN_X && Math.abs(dx) > Math.abs(dy) * CFG.SWIPE_RATIO){
-    dx < 0 ? nextPage() : prevPage();
-  }
-  touchX = null;
-}, { passive: true });
-
-/* クリックは1か所で集約処理する。
-   旧版は透明なタップ領域(div)を本文の上に重ねていたため、
-   その下のボタンや目次が押せないことがあった。座標判定方式なら
-   ボタン類を一切妨げずに「画面端タップでページ送り」を実現できる。 */
+/* 目次・編集・気づきのクリックを1か所で集約 */
 viewport.addEventListener("click", e => {
   const gc = e.target.closest("[data-gocat]");
-  if(gc){ const p = state.catPages[gc.dataset.gocat]; if(p !== undefined) goToPage(p); return; }
+  if(gc){ scrollToCat(gc.dataset.gocat); return; }
   const go = e.target.closest("[data-go]");
-  if(go){ const p = state.chapterPages[go.dataset.go]; if(p !== undefined) goToPage(p); return; }
+  if(go){ scrollToChapter(go.dataset.go); return; }
   const ed = e.target.closest("[data-edit]");
   if(ed){ openEditor(ed.dataset.edit); return; }
   const an = e.target.closest("[data-anno]");
   if(an){ openAnnos(an.dataset.anno); return; }
-  if(e.target.closest("a,button")) return;
-  /* 本文の文字列を選択した直後のクリックでページが飛ばないように */
-  if(window.getSelection && String(window.getSelection()) !== "") return;
-  const r = viewport.getBoundingClientRect();
-  const x = (e.clientX - r.left) / r.width;
-  if(x < CFG.EDGE_TAP) prevPage();
-  else if(x > 1 - CFG.EDGE_TAP) nextPage();
 });
 
-window.addEventListener("resize", debounce(() => layout(true), CFG.RESIZE_MS));
+/* スクロールで進捗バー・現在章ラベルを更新(rAFスロットル) */
+let _progTick = false;
+viewport.addEventListener("scroll", () => {
+  if(_progTick) return;
+  _progTick = true;
+  requestAnimationFrame(() => { _progTick = false; updateProgress(); });
+}, { passive: true });
+
+window.addEventListener("resize", debounce(() => updateProgress(), CFG.RESIZE_MS));
 
 /* ---------- 表紙 ---------- */
 $("#openBook").onclick = () => $("#cover").classList.add("hidden");
@@ -1034,7 +992,7 @@ $("#edSave").onclick = async () => {
   $("#editor").classList.remove("show");
   const keep = state.editingId;
   updateCoverCount(); buildBook(); Cloud.schedule();
-  setTimeout(() => { if(state.chapterPages[keep] !== undefined) goToPage(state.chapterPages[keep]); }, 120);
+  setTimeout(() => scrollToChapter(keep, true), 120);
 };
 
 $("#edDelete").onclick = async () => {
@@ -1093,7 +1051,7 @@ $("#miClip").onclick = async () => {
     const n = await addNoteFromText(text);
     closeSheets(); toast(`「${n.title}」を綴じました`);
     updateCoverCount(); buildBook(); Cloud.schedule();
-    setTimeout(() => { if(state.chapterPages[n.id] !== undefined) goToPage(state.chapterPages[n.id]); }, 150);
+    setTimeout(() => scrollToChapter(n.id), 150);
   }catch(err){
     /* iOS Safari は権限ダイアログ拒否などで読めないことがある。
        その場合は手で貼り付けてもらう導線に切り替える。 */
@@ -1197,8 +1155,8 @@ $("#srchResults").onclick = e => {
   const b = e.target.closest("[data-go]");
   if(!b) return;
   closeSheets();
-  const p = state.chapterPages[b.dataset.go];
-  if(p !== undefined) goToPage(p);
+  $("#cover").classList.add("hidden");
+  setTimeout(() => scrollToChapter(b.dataset.go), 60);
 };
 
 /* ---------- Annos: 気づきメモ(資料への注釈) ---------- */
@@ -1254,11 +1212,10 @@ function renderAnnos(){
 $("#annoList").onclick = e => {
   const go = e.target.closest("[data-annogo]");
   if(go){
-    const p = state.chapterPages[go.dataset.annogo];
-    if(p === undefined){ toast("この資料は本から取り除かれています"); return; }
+    if(!document.getElementById("ch-" + go.dataset.annogo)){ toast("この資料は本から取り除かれています"); return; }
     closeSheets();
     $("#cover").classList.add("hidden");  // 表紙画面からでも資料に直行できるように
-    goToPage(p);
+    setTimeout(() => scrollToChapter(go.dataset.annogo), 60);
     return;
   }
   const ed = e.target.closest("[data-annoedit]");
@@ -1363,7 +1320,7 @@ $("#catList").onclick = async e => {
 };
 
 /* ---------- メニュー残り ---------- */
-$("#miToc").onclick = () => { closeSheets(); goToPage(0); };
+$("#miToc").onclick = () => { closeSheets(); $("#cover").classList.add("hidden"); scrollTop(); };
 $("#miCover").onclick = () => { closeSheets(); $("#cover").classList.remove("hidden"); };
 $("#miTheme").onclick = () => {
   const next = document.body.dataset.theme === "night" ? "vellum" : "night";
